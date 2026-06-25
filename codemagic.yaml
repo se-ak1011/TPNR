@@ -15,7 +15,7 @@ workflows:
         - Ios_signing
       node: latest
       xcode: latest
-      cocoapods: default
+      cocoapods: latest
       vars:
         IOS_BUNDLE_IDENTIFIER: com.tenantpassport.app
         # SDK 54 / RN 0.81 default. Reanimated 4 requires the New Architecture.

@@ -18,7 +18,7 @@ workflows:
       cocoapods: latest
       vars:
         IOS_BUNDLE_IDENTIFIER: com.tenantpassport.app
-        # SDK 54 / RN 0.81 default. Reanimated 4 requires the New Architecture.
+        # SDK 56 / RN 0.85. Reanimated 4 requires the New Architecture.
         RCT_NEW_ARCH_ENABLED: "1"
 
     scripts:

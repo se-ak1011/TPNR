@@ -1,6 +1,6 @@
 workflows:
-  ios-release:
-    name: iOS Release
+  expo-ios:
+    name: Expo iOS
     max_build_duration: 60
     instance_type: mac_mini_m2
 
@@ -8,23 +8,54 @@ workflows:
       app_store_connect: codemagicFlutter
 
     environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.tenantpassport.app
       groups:
         - Ios_signing
       node: latest
-      xcode: 16.3
+      xcode: latest
       cocoapods: default
       vars:
         IOS_BUNDLE_IDENTIFIER: com.tenantpassport.app
+        # SDK 54 / RN 0.81 default. Reanimated 4 requires the New Architecture.
+        RCT_NEW_ARCH_ENABLED: "1"
 
     scripts:
+      - name: Print iOS signing assets detected by Codemagic
+        script: |
+          echo "== Code signing identities (name + SHA-1) =="
+          security find-identity -v -p codesigning || true
+
+          echo
+          echo "== Provisioning profiles available =="
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          if [[ -d "$PROFILE_DIR" ]]; then
+            find "$PROFILE_DIR" -name "*.mobileprovision" -maxdepth 1 | while read -r profile; do
+              echo
+              echo "Profile file: $(basename "$profile")"
+              security cms -D -i "$profile" > /tmp/codemagic_profile.plist
+              /usr/libexec/PlistBuddy -c "Print :Name" /tmp/codemagic_profile.plist || true
+              /usr/libexec/PlistBuddy -c "Print :UUID" /tmp/codemagic_profile.plist || true
+              /usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" /tmp/codemagic_profile.plist || true
+            done
+          else
+            echo "No provisioning profiles directory found at $PROFILE_DIR"
+          fi
+
       - name: Install dependencies
         script: |
           npm install
 
+      - name: Set unique build number
+        script: |
+          # Unix timestamp => always higher than the last upload, so App Store
+          # Connect never rejects a build for a duplicate version. Pinned here so
+          # every step in this build sees the same value (read by app.config.js).
+          echo "TENANTPASSPORT_BUILD_NUMBER=$(date +%s)" >> $CM_ENV
+
       - name: Expo prebuild iOS
         script: |
-          export RCT_NEW_ARCH_ENABLED=0
-          export EXPO_NEW_ARCH_ENABLED=0
           npx expo prebuild --platform ios --clean
 
       - name: Validate App Store Connect secrets
@@ -48,9 +79,21 @@ workflows:
         script: |
           export APP_STORE_CONNECT_KEY_IDENTIFIER="${APP_STORE_CONNECT_KEY_IDENTIFIER:-${APP_STORE_CONNECT_KEY_ID:-}}"
           keychain initialize
-          app-store-connect fetch-signing-files "$IOS_BUNDLE_IDENTIFIER" --type IOS_APP_STORE --create
+          app-store-connect fetch-signing-files "$IOS_BUNDLE_IDENTIFIER" \
+            --type IOS_APP_STORE \
+            --create \
+            --certificate-key-password "${CERTIFICATE_PRIVATE_KEY_PASSWORD:-}" || true
           keychain add-certificates
+
+          echo "== Certificates in keychain after setup =="
+          security find-identity -v -p codesigning || true
+
+          echo "== Provisioning profiles installed =="
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          ls -1 "$PROFILE_DIR" 2>/dev/null || echo "No profiles directory found"
+
           cd ios
+          # Apply profiles — without --warn-only so the build fails loudly if no profile is found
           xcode-project use-profiles
 
       - name: Install iOS pods
@@ -58,32 +101,12 @@ workflows:
           cd ios
           pod install --repo-update
 
-      - name: Patch Pods
-        script: |
-          cd ios
-          ruby -e "
-          require 'xcodeproj'
-          project = Xcodeproj::Project.open('Pods/Pods.xcodeproj')
-          project.targets.each do |target|
-            target.build_configurations.each do |config|
-              config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
-              config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
-              config.build_settings['GCC_C_LANGUAGE_STANDARD'] = 'gnu11'
-              config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
-              config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
-              config.build_settings['CODE_SIGNING_IDENTITY'] = ''
-            end
-          end
-          project.save
-          "
-
       - name: Build IPA
         script: |
-          export RCT_NEW_ARCH_ENABLED=0
-          export EXPO_NEW_ARCH_ENABLED=0
           xcode-project build-ipa \
             --workspace ios/*.xcworkspace \
-            --scheme TenantPassport
+            --scheme TenantPassport \
+            --config Release
 
     artifacts:
       - build/ios/ipa/*.ipa

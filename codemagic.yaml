@@ -43,10 +43,6 @@ workflows:
             echo "No provisioning profiles directory found at $PROFILE_DIR"
           fi
 
-      - name: Install dependencies
-        script: |
-          npm install
-
       - name: Set unique build number
         script: |
           # Unix timestamp => always higher than the last upload, so App Store

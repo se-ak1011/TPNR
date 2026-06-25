@@ -49,6 +49,10 @@ workflows:
           # every step in this build sees the same value (read by app.config.js).
           echo "TENANTPASSPORT_BUILD_NUMBER=$(date +%s)" >> $CM_ENV
 
+      - name: Install npm dependencies
+        script: |
+          npm install --legacy-peer-deps
+
       - name: Expo prebuild iOS
         script: |
           npx expo prebuild --platform ios --clean

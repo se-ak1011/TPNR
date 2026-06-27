@@ -4,7 +4,7 @@ Tenant Passport is a dark-mode-first Expo React Native app for renter onboarding
 
 ## Stack
 
-- Expo SDK 54
+- Expo SDK 56
 - Expo Router
 - React Native + TypeScript
 - iOS and Android ready via `expo prebuild`
@@ -104,19 +104,19 @@ Replace these with production artwork before release.
 
 ## Known limitations
 
-- All data is mock-only — no backend, no API, no persistence.
-- Authentication is a UI mock; no real auth provider is wired up.
-- Document upload shows a checklist placeholder only; no file I/O yet.
+- All data is mock-only — no backend, no API, no persistence (Supabase integration in progress).
+- Authentication is a UI mock; Supabase Auth wiring is in progress.
+- Document upload shows a checklist placeholder only; Supabase Storage integration is in progress.
 - Right to Rent checks are recorded as self-declared fields.
 - Payments and identity verification are not included.
 - Web layout is supported via Expo Router / Metro but is not optimised for wide viewports.
 
 ## Next steps
 
-1. **Auth** — integrate Clerk, Firebase Auth, or Supabase for real sign-in.
-2. **Backend / database** — store passport and application records (Supabase / PocketBase work well with Expo).
-3. **Document upload** — wire up Expo ImagePicker + file storage (e.g. Supabase Storage).
-4. **Push notifications** — alert applicants when their status changes.
-5. **Agent invite flow** — let agents invite applicants by email or shareable link.
+1. **Auth** — Supabase Auth (email/password + magic link). Wrap the app in a session provider; redirect `(auth)` routes on sign-in.
+2. **Backend / database** — Supabase Postgres: `profiles`, `passports`, `applications`, `properties` tables mirroring `types/index.ts`.
+3. **Document upload** — `expo-image-picker` + Supabase Storage bucket; store signed URLs in the `passports` table.
+4. **Push notifications** — alert applicants when their application status changes.
+5. **Agent invite flow** — let agents invite applicants by email or shareable deep-link.
 6. **Production assets** — replace placeholder icons with branded artwork.
 7. **App Store / Play Store submission** — update `app.json` with real bundle IDs, configure signing in Codemagic.

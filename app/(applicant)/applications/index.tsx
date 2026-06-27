@@ -6,16 +6,27 @@ import { Badge, STATUS_LABELS } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { applicationStatusOrder, currentApplicant } from '@/data/mockData';
+import { applicationStatusOrder, useCurrentApplicantData } from '@/lib/db';
 import { ApplicationStatus } from '@/types';
 
 export default function ApplicationsScreen() {
   const router = useRouter();
+  const { applicant: currentApplicant, loading } = useCurrentApplicantData();
 
   const counts = applicationStatusOrder.reduce<Record<ApplicationStatus, number>>((acc, status) => {
     acc[status] = currentApplicant.applications.filter((item) => item.status === status).length;
     return acc;
   }, {} as Record<ApplicationStatus, number>);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingWrap}>
+          <Text style={styles.loadingText}>Loading applications...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -65,6 +76,15 @@ const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: Colors.background.primary,
     flex: 1,
+  },
+  loadingWrap: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: Colors.text.secondary,
+    fontSize: Typography.sizes.md,
   },
   container: {
     gap: Spacing.lg,

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { applicants } from '@/data/mockData';
+import { applicants } from '@/lib/db';
 
 export default function ApplicantsScreen() {
   const router = useRouter();

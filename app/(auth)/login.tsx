@@ -6,16 +6,32 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Colors, Spacing, Typography } from '@/constants/theme';
+import { useAuth } from '@/context/AuthContext';
 import { UserMode } from '@/types';
 
 export default function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: UserMode }>();
   const mode = params.mode === 'agent' ? 'agent' : 'applicant';
-  const [email, setEmail] = useState(mode === 'agent' ? 'team@bridgeresidential.co.uk' : 'maya.thompson@example.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { signIn } = useAuth();
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    setLoading(true);
+    setError(null);
+
+    const result = await signIn(email, password);
+
+    if (result.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(false);
     router.replace(mode === 'agent' ? '/(agent)/dashboard' : '/(applicant)/dashboard');
   };
 
@@ -30,9 +46,10 @@ export default function LoginScreen() {
         </View>
 
         <Card style={styles.formCard}>
-          <Input autoCapitalize="none" label="Email" onChangeText={setEmail} placeholder="you@example.com" value={email} />
+          <Input autoCapitalize="none" keyboardType="email-address" label="Email" onChangeText={setEmail} placeholder="you@example.com" value={email} />
           <Input label="Password" onChangeText={setPassword} placeholder="••••••••" secureTextEntry value={password} />
-          <Button title={mode === 'agent' ? 'Enter agent dashboard' : 'Open my dashboard'} onPress={handleLogin} />
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <Button loading={loading} title={mode === 'agent' ? 'Enter agent dashboard' : 'Open my dashboard'} onPress={handleLogin} />
           <Button title="Need an account? Sign up" onPress={() => router.replace(`/(auth)/signup?mode=${mode}`)} variant="ghost" />
         </Card>
       </ScrollView>
@@ -65,5 +82,9 @@ const styles = StyleSheet.create({
   },
   formCard: {
     gap: Spacing.lg,
+  },
+  errorText: {
+    color: '#ff6b6b',
+    fontSize: Typography.sizes.sm,
   },
 });

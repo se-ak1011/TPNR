@@ -48,6 +48,15 @@ Tenant Passport is a dark-mode-first Expo React Native app for renter onboarding
    npm run web
    ```
 
+## Supabase runtime config
+
+Set these in your shell or `.env` for Expo before launching:
+
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://txgtsefuqfxdfgdmfscw.supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_Mx5B_oT_dFKYuPjX2PlN_g_aMyD1xVs
+```
+
 ## Native folders
 
 The `ios/` and `android/` directories are committed to the repository so Codemagic and local builds work without an extra step. They were generated via:
@@ -104,9 +113,8 @@ Replace these with production artwork before release.
 
 ## Known limitations
 
-- All data is mock-only — no backend, no API, no persistence (Supabase integration in progress).
-- Authentication is a UI mock; Supabase Auth wiring is in progress.
-- Document upload shows a checklist placeholder only; Supabase Storage integration is in progress.
+- Agent and marketing surfaces still use mock data; applicant passport and auth now read/write via Supabase when configured.
+- Supabase table shape must match `lib/db.ts` payload keys for persistence.
 - Right to Rent checks are recorded as self-declared fields.
 - Payments and identity verification are not included.
 - Web layout is supported via Expo Router / Metro but is not optimised for wide viewports.

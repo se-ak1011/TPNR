@@ -5,7 +5,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { agentModeHighlights, applicantModeHighlights } from '@/data/mockData';
+import { agentModeHighlights, applicantModeHighlights } from '@/lib/db';
 import { UserMode } from '@/types';
 
 export default function WelcomeScreen() {

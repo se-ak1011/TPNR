@@ -6,12 +6,24 @@ import { Badge, STATUS_LABELS } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { applicationStatusOrder, currentApplicant } from '@/data/mockData';
+import { applicationStatusOrder, useCurrentApplicantData } from '@/lib/db';
 
 export default function ApplicationDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { applicant: currentApplicant, loading } = useCurrentApplicantData();
   const application = currentApplicant.applications.find((item) => item.id === id) || currentApplicant.applications[0];
+
+  if (loading || !application) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingWrap}>
+          <Text style={styles.loadingText}>Loading application...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const currentIndex = applicationStatusOrder.indexOf(application.status);
 
   return (
@@ -76,6 +88,15 @@ const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: Colors.background.primary,
     flex: 1,
+  },
+  loadingWrap: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: Colors.text.secondary,
+    fontSize: Typography.sizes.md,
   },
   container: {
     gap: Spacing.lg,

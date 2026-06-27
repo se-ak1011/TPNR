@@ -7,14 +7,25 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { currentApplicant } from '@/data/mockData';
+import { useCurrentApplicantData } from '@/lib/db';
 
 const currency = (value?: number) => (value ? `£${value.toLocaleString()}` : '—');
 
 export default function ApplicantDashboardScreen() {
   const router = useRouter();
+  const { applicant: currentApplicant, loading } = useCurrentApplicantData();
   const documents = Object.values(currentApplicant.passport.documents);
   const completeDocs = documents.filter(Boolean).length;
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingWrap}>
+          <Text style={styles.loadingText}>Loading dashboard...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -111,6 +122,15 @@ const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: Colors.background.primary,
     flex: 1,
+  },
+  loadingWrap: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: Colors.text.secondary,
+    fontSize: Typography.sizes.md,
   },
   container: {
     gap: Spacing.lg,

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { agentProperties, allApplications, applicants } from '@/data/mockData';
+import { agentProperties, allApplications, applicants } from '@/lib/db';
 
 export default function AgentDashboardScreen() {
   const router = useRouter();

@@ -7,14 +7,51 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
-import { currentApplicant } from '@/data/mockData';
+import { upsertPassport, useCurrentApplicantData } from '@/lib/db';
+import { TenantPassport } from '@/types';
+
+const smokingStatuses: TenantPassport['smokingStatus'][] = ['non_smoker', 'smoker', 'outdoor_only'];
+
+function normalizeSmokingStatus(value: string): TenantPassport['smokingStatus'] {
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, '_') as TenantPassport['smokingStatus'];
+  return smokingStatuses.includes(normalized) ? normalized : 'non_smoker';
+}
 
 export default function LifestyleOnboardingScreen() {
   const router = useRouter();
-  const [hasPets, setHasPets] = useState(currentApplicant.passport.hasPets);
-  const [hasChildren, setHasChildren] = useState(currentApplicant.passport.hasChildren);
-  const [smoking, setSmoking] = useState(currentApplicant.passport.smokingStatus.replace('_', ' '));
-  const [notes, setNotes] = useState(currentApplicant.passport.notesForAgent || '');
+  const { applicant: currentApplicant, loading } = useCurrentApplicantData();
+  const [hasPets, setHasPets] = useState<boolean | null>(null);
+  const [hasChildren, setHasChildren] = useState<boolean | null>(null);
+  const [smoking, setSmoking] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const resolvedHasPets = hasPets ?? currentApplicant.passport.hasPets;
+  const resolvedHasChildren = hasChildren ?? currentApplicant.passport.hasChildren;
+  const resolvedSmoking = smoking || currentApplicant.passport.smokingStatus.replace('_', ' ');
+  const resolvedNotes = notes || currentApplicant.passport.notesForAgent || '';
+
+  const handleContinue = async () => {
+    setSaving(true);
+    await upsertPassport({
+      hasPets: resolvedHasPets,
+      hasChildren: resolvedHasChildren,
+      smokingStatus: normalizeSmokingStatus(resolvedSmoking),
+      notesForAgent: resolvedNotes,
+    });
+    setSaving(false);
+    router.push('/(applicant)/onboarding/documents');
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingWrap}>
+          <Text style={styles.loadingText}>Loading details...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -26,24 +63,24 @@ export default function LifestyleOnboardingScreen() {
           <View style={styles.toggleGroup}>
             <Text style={styles.label}>Pets</Text>
             <View style={styles.toggleRow}>
-              <Toggle label="No pets" selected={!hasPets} onPress={() => setHasPets(false)} />
-              <Toggle label="Has pets" selected={hasPets} onPress={() => setHasPets(true)} />
+              <Toggle label="No pets" selected={!resolvedHasPets} onPress={() => setHasPets(false)} />
+              <Toggle label="Has pets" selected={resolvedHasPets} onPress={() => setHasPets(true)} />
             </View>
           </View>
 
           <View style={styles.toggleGroup}>
             <Text style={styles.label}>Children / dependants</Text>
             <View style={styles.toggleRow}>
-              <Toggle label="None" selected={!hasChildren} onPress={() => setHasChildren(false)} />
-              <Toggle label="Yes" selected={hasChildren} onPress={() => setHasChildren(true)} />
+              <Toggle label="None" selected={!resolvedHasChildren} onPress={() => setHasChildren(false)} />
+              <Toggle label="Yes" selected={resolvedHasChildren} onPress={() => setHasChildren(true)} />
             </View>
           </View>
 
-          <Input label="Smoking status" onChangeText={setSmoking} value={smoking} />
-          <Input label="Notes for landlord or agent" multiline onChangeText={setNotes} value={notes} />
+          <Input hint="non smoker, smoker, outdoor only" label="Smoking status" onChangeText={setSmoking} value={resolvedSmoking} />
+          <Input label="Notes for landlord or agent" multiline onChangeText={setNotes} value={resolvedNotes} />
         </Card>
 
-        <Button title="Continue to documents" onPress={() => router.push('/(applicant)/onboarding/documents')} />
+        <Button loading={saving} title="Continue to documents" onPress={handleContinue} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -61,6 +98,15 @@ const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: Colors.background.primary,
     flex: 1,
+  },
+  loadingWrap: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: Colors.text.secondary,
+    fontSize: Typography.sizes.md,
   },
   container: {
     gap: Spacing.lg,

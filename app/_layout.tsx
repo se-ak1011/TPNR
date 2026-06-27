@@ -3,6 +3,25 @@ import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
 import { Colors } from '@/constants/theme';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+
+function RootNavigator() {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return null;
+  }
+
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'fade',
+        contentStyle: { backgroundColor: Colors.background.primary },
+      }}
+    />
+  );
+}
 
 export default function RootLayout() {
   useEffect(() => {
@@ -10,15 +29,9 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: 'fade',
-          contentStyle: { backgroundColor: Colors.background.primary },
-        }}
-      />
-    </>
+      <RootNavigator />
+    </AuthProvider>
   );
 }

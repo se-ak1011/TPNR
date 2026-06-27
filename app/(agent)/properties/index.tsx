@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { agentProperties } from '@/data/mockData';
+import { agentProperties } from '@/lib/db';
 
 export default function PropertiesScreen() {
   const router = useRouter();

@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge, STATUS_LABELS } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
-import { applicants, applicationStatusOrder } from '@/data/mockData';
+import { applicants, applicationStatusOrder } from '@/lib/db';
 import { ApplicationStatus } from '@/types';
 
 export default function ApplicantDetailScreen() {

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { currentApplicant } from '@/data/mockData';
+import { useCurrentApplicantData } from '@/lib/db';
 
 const documents = [
   { key: 'photoId', label: 'Photo ID' },
@@ -19,7 +19,18 @@ const documents = [
 const money = (value?: number) => (value ? `£${value.toLocaleString()}` : '—');
 
 export default function PassportScreen() {
+  const { applicant: currentApplicant, loading } = useCurrentApplicantData();
   const passport = currentApplicant.passport;
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingWrap}>
+          <Text style={styles.loadingText}>Loading passport...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -102,6 +113,15 @@ const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: Colors.background.primary,
     flex: 1,
+  },
+  loadingWrap: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: Colors.text.secondary,
+    fontSize: Typography.sizes.md,
   },
   container: {
     gap: Spacing.lg,

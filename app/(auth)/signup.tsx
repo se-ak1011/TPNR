@@ -6,17 +6,41 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Colors, Spacing, Typography } from '@/constants/theme';
+import { useAuth } from '@/context/AuthContext';
 import { UserMode } from '@/types';
 
 export default function SignupScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: UserMode }>();
   const mode = params.mode === 'agent' ? 'agent' : 'applicant';
-  const [name, setName] = useState(mode === 'agent' ? 'Bridge Residential Team' : 'Maya Thompson');
-  const [email, setEmail] = useState(mode === 'agent' ? 'team@bridgeresidential.co.uk' : 'maya.thompson@example.com');
-  const [password, setPassword] = useState('password123');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { signUp } = useAuth();
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    const result = await signUp(email, password);
+
+    if (result.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
+    }
+
+    if (result.needsEmailVerification) {
+      setSuccessMessage('Account created. Check your email to verify, then log in.');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(false);
     router.replace(mode === 'agent' ? '/(agent)/dashboard' : '/(applicant)/onboarding');
   };
 
@@ -34,9 +58,11 @@ export default function SignupScreen() {
 
         <Card style={styles.formCard}>
           <Input label={mode === 'agent' ? 'Agency or team name' : 'Full name'} onChangeText={setName} placeholder="Your name" value={name} />
-          <Input autoCapitalize="none" label="Email" onChangeText={setEmail} placeholder="you@example.com" value={email} />
+          <Input autoCapitalize="none" keyboardType="email-address" label="Email" onChangeText={setEmail} placeholder="you@example.com" value={email} />
           <Input label="Password" onChangeText={setPassword} placeholder="Create a password" secureTextEntry value={password} />
-          <Button title={mode === 'agent' ? 'Launch agent workspace' : 'Start onboarding'} onPress={handleSignup} />
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
+          <Button loading={loading} title={mode === 'agent' ? 'Launch agent workspace' : 'Start onboarding'} onPress={handleSignup} />
           <Button title="Already have an account? Log in" onPress={() => router.replace(`/(auth)/login?mode=${mode}`)} variant="ghost" />
         </Card>
       </ScrollView>
@@ -69,5 +95,13 @@ const styles = StyleSheet.create({
   },
   formCard: {
     gap: Spacing.lg,
+  },
+  errorText: {
+    color: '#ff6b6b',
+    fontSize: Typography.sizes.sm,
+  },
+  successText: {
+    color: Colors.success,
+    fontSize: Typography.sizes.sm,
   },
 });

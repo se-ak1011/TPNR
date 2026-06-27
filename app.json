@@ -37,6 +37,12 @@
           "backgroundColor": "#0F0F0F",
           "imageWidth": 200
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Tenant Passport to access your photos for document uploads."
+        }
       ]
     ],
     "experiments": {

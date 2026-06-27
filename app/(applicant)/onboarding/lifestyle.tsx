@@ -25,6 +25,7 @@ export default function LifestyleOnboardingScreen() {
   const [smoking, setSmoking] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const resolvedHasPets = hasPets ?? currentApplicant.passport.hasPets;
   const resolvedHasChildren = hasChildren ?? currentApplicant.passport.hasChildren;
@@ -33,14 +34,21 @@ export default function LifestyleOnboardingScreen() {
 
   const handleContinue = async () => {
     setSaving(true);
-    await upsertPassport({
+    setError(null);
+
+    try {
+      await upsertPassport({
       hasPets: resolvedHasPets,
       hasChildren: resolvedHasChildren,
       smokingStatus: normalizeSmokingStatus(resolvedSmoking),
       notesForAgent: resolvedNotes,
     });
-    setSaving(false);
-    router.push('/(applicant)/onboarding/documents');
+      router.push('/(applicant)/onboarding/documents');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save your changes.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -80,6 +88,7 @@ export default function LifestyleOnboardingScreen() {
           <Input label="Notes for landlord or agent" multiline onChangeText={setNotes} value={resolvedNotes} />
         </Card>
 
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <Button loading={saving} title="Continue to documents" onPress={handleContinue} />
       </ScrollView>
     </SafeAreaView>
@@ -151,5 +160,9 @@ const styles = StyleSheet.create({
   },
   toggleTextSelected: {
     color: Colors.text.primary,
+  },
+  errorText: {
+    color: '#ff6b6b',
+    fontSize: Typography.sizes.sm,
   },
 });

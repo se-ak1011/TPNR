@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 function getFileExtension(uri: string) {
   const lastDot = uri.lastIndexOf('.');
   if (lastDot === -1) {
-    return 'jpg';
+    return 'bin';
   }
 
   return uri.slice(lastDot + 1).toLowerCase();

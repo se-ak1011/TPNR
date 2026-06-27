@@ -2,17 +2,22 @@ import { Session, User } from '@supabase/supabase-js';
 import { useRouter, useSegments } from 'expo-router';
 import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { UserMode } from '@/types';
 
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: string | null; needsEmailVerification: boolean }>;
+  signUp: (email: string, password: string, mode: UserMode) => Promise<{ error: string | null; needsEmailVerification: boolean }>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function resolveUserMode(session: Session | null): UserMode {
+  return session?.user.user_metadata?.mode === 'agent' ? 'agent' : 'applicant';
+}
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
@@ -55,7 +60,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     if (session && inAuthGroup) {
-      router.replace('/(applicant)/dashboard');
+      const mode = resolveUserMode(session);
+      router.replace(mode === 'agent' ? '/(agent)/dashboard' : '/(applicant)/dashboard');
     }
   }, [loading, router, segments, session]);
 
@@ -72,10 +78,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
         return { error: error?.message ?? null };
       },
-      signUp: async (email: string, password: string) => {
+      signUp: async (email: string, password: string, mode: UserMode) => {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
+          options: {
+            data: { mode },
+          },
         });
 
         const needsEmailVerification = !data.session;

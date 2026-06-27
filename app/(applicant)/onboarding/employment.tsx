@@ -26,6 +26,7 @@ export default function EmploymentOnboardingScreen() {
   const [income, setIncome] = useState('');
   const [budget, setBudget] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const resolvedEmployment = employment || currentApplicant.passport.employmentStatus.replace('_', ' ');
   const resolvedEmployer = employer || currentApplicant.passport.employer || '';
@@ -35,15 +36,22 @@ export default function EmploymentOnboardingScreen() {
 
   const handleContinue = async () => {
     setSaving(true);
-    await upsertPassport({
+    setError(null);
+
+    try {
+      await upsertPassport({
       employmentStatus: normalizeEmploymentStatus(resolvedEmployment),
       employer: resolvedEmployer,
       jobTitle: resolvedJobTitle,
       annualIncome: resolvedIncome ? Number(resolvedIncome) : undefined,
       monthlyBudget: resolvedBudget ? Number(resolvedBudget) : undefined,
     });
-    setSaving(false);
-    router.push('/(applicant)/onboarding/lifestyle');
+      router.push('/(applicant)/onboarding/lifestyle');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save your changes.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -70,6 +78,7 @@ export default function EmploymentOnboardingScreen() {
           <Input keyboardType="numeric" label="Monthly budget" onChangeText={setBudget} value={resolvedBudget} />
         </Card>
 
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <Button loading={saving} title="Continue to lifestyle" onPress={handleContinue} />
       </ScrollView>
     </SafeAreaView>
@@ -101,5 +110,9 @@ const styles = StyleSheet.create({
   },
   formCard: {
     gap: Spacing.lg,
+  },
+  errorText: {
+    color: '#ff6b6b',
+    fontSize: Typography.sizes.sm,
   },
 });

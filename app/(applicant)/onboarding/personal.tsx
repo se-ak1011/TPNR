@@ -18,6 +18,7 @@ export default function PersonalOnboardingScreen() {
   const [address, setAddress] = useState('');
   const [moveInDate, setMoveInDate] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const resolvedName = name || currentApplicant.passport.fullName;
   const resolvedEmail = email || currentApplicant.passport.email;
@@ -27,15 +28,22 @@ export default function PersonalOnboardingScreen() {
 
   const handleContinue = async () => {
     setSaving(true);
-    await upsertPassport({
+    setError(null);
+
+    try {
+      await upsertPassport({
       fullName: resolvedName,
       email: resolvedEmail,
       phone: resolvedPhone,
       currentAddress: resolvedAddress,
       desiredMoveInDate: resolvedMoveInDate,
     });
-    setSaving(false);
-    router.push('/(applicant)/onboarding/employment');
+      router.push('/(applicant)/onboarding/employment');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save your changes.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -62,6 +70,7 @@ export default function PersonalOnboardingScreen() {
           <Input label="Desired move-in date" onChangeText={setMoveInDate} value={resolvedMoveInDate} />
         </Card>
 
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <Button loading={saving} title="Continue to employment" onPress={handleContinue} />
       </ScrollView>
     </SafeAreaView>
@@ -93,5 +102,9 @@ const styles = StyleSheet.create({
   },
   formCard: {
     gap: Spacing.lg,
+  },
+  errorText: {
+    color: '#ff6b6b',
+    fontSize: Typography.sizes.sm,
   },
 });

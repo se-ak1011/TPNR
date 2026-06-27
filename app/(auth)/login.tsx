@@ -11,7 +11,7 @@ import { UserMode } from '@/types';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ mode?: UserMode }>();
+  const params = useLocalSearchParams<{ mode?: UserMode; notice?: string }>();
   const mode = params.mode === 'agent' ? 'agent' : 'applicant';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,6 +46,7 @@ export default function LoginScreen() {
         </View>
 
         <Card style={styles.formCard}>
+          {params.notice === 'verify_email' ? <Text style={styles.successText}>Account created. Check your inbox to verify, then sign in.</Text> : null}
           <Input autoCapitalize="none" keyboardType="email-address" label="Email" onChangeText={setEmail} placeholder="you@example.com" value={email} />
           <Input label="Password" onChangeText={setPassword} placeholder="••••••••" secureTextEntry value={password} />
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -85,6 +86,10 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#ff6b6b',
+    fontSize: Typography.sizes.sm,
+  },
+  successText: {
+    color: Colors.success,
     fontSize: Typography.sizes.sm,
   },
 });

@@ -13,20 +13,17 @@ export default function SignupScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: UserMode }>();
   const mode = params.mode === 'agent' ? 'agent' : 'applicant';
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
 
   const handleSignup = async () => {
     setLoading(true);
     setError(null);
-    setSuccessMessage(null);
 
-    const result = await signUp(email, password);
+    const result = await signUp(email, password, mode);
 
     if (result.error) {
       setError(result.error);
@@ -34,13 +31,13 @@ export default function SignupScreen() {
       return;
     }
 
+    setLoading(false);
+
     if (result.needsEmailVerification) {
-      setSuccessMessage('Account created. Check your email to verify, then log in.');
-      setLoading(false);
+      router.replace(`/(auth)/login?mode=${mode}&notice=verify_email`);
       return;
     }
 
-    setLoading(false);
     router.replace(mode === 'agent' ? '/(agent)/dashboard' : '/(applicant)/onboarding');
   };
 
@@ -57,11 +54,9 @@ export default function SignupScreen() {
         </View>
 
         <Card style={styles.formCard}>
-          <Input label={mode === 'agent' ? 'Agency or team name' : 'Full name'} onChangeText={setName} placeholder="Your name" value={name} />
           <Input autoCapitalize="none" keyboardType="email-address" label="Email" onChangeText={setEmail} placeholder="you@example.com" value={email} />
           <Input label="Password" onChangeText={setPassword} placeholder="Create a password" secureTextEntry value={password} />
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
           <Button loading={loading} title={mode === 'agent' ? 'Launch agent workspace' : 'Start onboarding'} onPress={handleSignup} />
           <Button title="Already have an account? Log in" onPress={() => router.replace(`/(auth)/login?mode=${mode}`)} variant="ghost" />
         </Card>
@@ -98,10 +93,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#ff6b6b',
-    fontSize: Typography.sizes.sm,
-  },
-  successText: {
-    color: Colors.success,
     fontSize: Typography.sizes.sm,
   },
 });

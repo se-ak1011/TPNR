@@ -57,13 +57,18 @@ export default function DocumentsOnboardingScreen() {
   };
 
   const handleFinish = async () => {
-    await upsertPassport({
+    try {
+      setError(null);
+      await upsertPassport({
       documents: resolvedDocuments,
       isComplete: Object.values(resolvedDocuments).every(Boolean),
       completedAt: new Date().toISOString().slice(0, 10),
     });
 
-    router.replace('/(applicant)/onboarding/complete');
+      router.replace('/(applicant)/onboarding/complete');
+    } catch (finishError) {
+      setError(finishError instanceof Error ? finishError.message : 'Could not finish onboarding.');
+    }
   };
 
   if (loading) {

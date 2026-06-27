@@ -36,7 +36,7 @@ function hasDocumentValue(value: unknown) {
 }
 
 function mapDocuments(raw: unknown): DocumentChecklist {
-  const source = typeof raw === 'object' && raw ? (raw as PassportDocuments) : {};
+  const source = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as PassportDocuments) : {};
 
   return {
     photoId: hasDocumentValue(source.photoId),
@@ -49,7 +49,7 @@ function mapDocuments(raw: unknown): DocumentChecklist {
 }
 
 function mapDocumentPaths(raw: unknown): Partial<Record<keyof DocumentChecklist, string>> {
-  const source = typeof raw === 'object' && raw ? (raw as PassportDocuments) : {};
+  const source = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as PassportDocuments) : {};
 
   return documentKeys.reduce<Partial<Record<keyof DocumentChecklist, string>>>((acc, key) => {
     if (typeof source[key] === 'string' && source[key]) {
@@ -222,7 +222,7 @@ export async function upsertPassport(patch: Partial<TenantPassport>) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return;
+    throw new Error('You must be signed in to update passport data.');
   }
 
   const payload = {
@@ -239,7 +239,7 @@ export async function saveDocumentPath(documentKey: keyof DocumentChecklist, pat
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return;
+    throw new Error('You must be signed in to save document paths.');
   }
 
   const { data: currentRow } = await supabase.from('passports').select('documents').eq('user_id', user.id).maybeSingle();

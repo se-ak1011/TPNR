@@ -53,8 +53,8 @@ Tenant Passport is a dark-mode-first Expo React Native app for renter onboarding
 Set these in your shell or `.env` for Expo before launching:
 
 ```bash
-EXPO_PUBLIC_SUPABASE_URL=https://txgtsefuqfxdfgdmfscw.supabase.co
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_Mx5B_oT_dFKYuPjX2PlN_g_aMyD1xVs
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 ```
 
 ## Native folders

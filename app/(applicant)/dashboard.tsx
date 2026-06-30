@@ -3,101 +3,149 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { currentApplicant } from '@/data/mockData';
+import { currentApplicant, currentTenancy, movingChecklist } from '@/data/mockData';
 
 const currency = (value?: number) => (value ? `£${value.toLocaleString()}` : '—');
 
-export default function ApplicantDashboardScreen() {
+type JourneySection = {
+  icon: string;
+  label: string;
+  sublabel: string;
+  route: string;
+  accent?: string;
+};
+
+export default function DashboardScreen() {
   const router = useRouter();
   const documents = Object.values(currentApplicant.passport.documents);
   const completeDocs = documents.filter(Boolean).length;
+  const openMaintenance = currentTenancy.maintenanceRequests.filter((r) => r.status !== 'resolved' && r.status !== 'closed');
+  const urgentMaintenance = openMaintenance.filter((r) => r.priority === 'high' || r.priority === 'emergency');
+  const checklistDone = movingChecklist.filter((i) => i.completed).length;
+
+  const journeySections: JourneySection[] = [
+    {
+      icon: 'id-card-outline',
+      label: 'My Passport',
+      sublabel: currentApplicant.passport.isComplete
+        ? `${currentApplicant.applications.length} active applications`
+        : 'Finish your profile to apply',
+      route: '/(applicant)/passport',
+    },
+    {
+      icon: 'shield-checkmark-outline',
+      label: 'My Home',
+      sublabel:
+        openMaintenance.length > 0
+          ? `${openMaintenance.length} open request${openMaintenance.length > 1 ? 's' : ''}${urgentMaintenance.length > 0 ? ` · ${urgentMaintenance.length} urgent` : ''}`
+          : 'All requests resolved',
+      route: '/(applicant)/my-home',
+      accent: urgentMaintenance.length > 0 ? Colors.error : undefined,
+    },
+    {
+      icon: 'checkbox-outline',
+      label: 'Moving',
+      sublabel: `${checklistDone} of ${movingChecklist.length} checklist items done · £${currentTenancy.depositInfo.amount.toLocaleString()} held in ${currentTenancy.depositInfo.scheme}`,
+      route: '/(applicant)/moving',
+    },
+  ];
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Good evening</Text>
+            <Text style={styles.greeting}>Good morning</Text>
             <Text style={styles.name}>{currentApplicant.passport.fullName}</Text>
           </View>
-          <Badge label={currentApplicant.passport.isComplete ? 'Passport ready' : 'Finish onboarding'} color={currentApplicant.passport.isComplete ? Colors.success : Colors.accent.gold} />
+          <Badge
+            label={currentApplicant.passport.isComplete ? 'Passport ready' : 'Finish onboarding'}
+            color={currentApplicant.passport.isComplete ? Colors.success : Colors.accent.gold}
+          />
         </View>
 
         <Card tone="warm" style={styles.heroCard}>
-          <Text style={styles.heroTitle}>Your profile is working hard for you.</Text>
+          <Text style={styles.heroTitle}>Your full renting journey, in one place.</Text>
           <Text style={styles.heroText}>
-            Share one polished renter passport with every application and keep momentum across multiple properties.
+            Passport to move-in to move-out — everything you need to rent with confidence.
           </Text>
           <View style={styles.heroStatsRow}>
             <View>
               <Text style={styles.heroStat}>{currentApplicant.applications.length}</Text>
-              <Text style={styles.heroLabel}>Live applications</Text>
+              <Text style={styles.heroLabel}>Applications</Text>
             </View>
             <View>
               <Text style={styles.heroStat}>{currency(currentApplicant.passport.monthlyBudget)}</Text>
               <Text style={styles.heroLabel}>Monthly budget</Text>
             </View>
+            <View>
+              <Text style={styles.heroStat}>{currentTenancy.inventoryItems.length}</Text>
+              <Text style={styles.heroLabel}>Items documented</Text>
+            </View>
           </View>
         </Card>
 
-        <View style={styles.grid}>
-          <Card style={styles.statCard}>
-            <Text style={styles.statValue}>{currentApplicant.applications.filter((item) => item.status === 'submitted').length}</Text>
-            <Text style={styles.statLabel}>Submitted</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={styles.statValue}>{currentApplicant.applications.filter((item) => item.status === 'viewing_invited').length}</Text>
-            <Text style={styles.statLabel}>Viewing invites</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={styles.statValue}>{currentApplicant.passport.desiredMoveInDate}</Text>
-            <Text style={styles.statLabel}>Preferred move date</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={styles.statValue}>{currentApplicant.passport.employmentStatus.replace('_', ' ')}</Text>
-            <Text style={styles.statLabel}>Employment</Text>
-          </Card>
-        </View>
+        <Text style={styles.sectionTitle}>Your journey</Text>
 
-        <View style={styles.actions}>
-          <Button title="Continue onboarding" onPress={() => router.push('/(applicant)/onboarding')} />
-          <Button title="Start a new application" onPress={() => router.push('/(applicant)/applications/new')} variant="secondary" />
-        </View>
+        {journeySections.map((section) => (
+          <Pressable key={section.label} onPress={() => router.push(section.route as any)}>
+            <Card style={styles.journeyCard}>
+              <View style={styles.journeyRow}>
+                <View style={[styles.journeyIconWrap, section.accent ? { borderColor: section.accent } : {}]}>
+                  <Ionicons
+                    color={section.accent ?? Colors.accent.gold}
+                    name={section.icon as any}
+                    size={22}
+                  />
+                </View>
+                <View style={styles.journeyContent}>
+                  <Text style={styles.journeyLabel}>{section.label}</Text>
+                  <Text style={[styles.journeySublabel, section.accent ? { color: section.accent } : {}]}>
+                    {section.sublabel}
+                  </Text>
+                </View>
+                <Ionicons color={Colors.text.muted} name="chevron-forward" size={18} />
+              </View>
+            </Card>
+          </Pressable>
+        ))}
 
-        <Card style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Passport health</Text>
-            <Ionicons color={Colors.accent.gold} name="sparkles-outline" size={18} />
-          </View>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Passport health</Text>
+          <Ionicons color={Colors.accent.gold} name="sparkles-outline" size={18} />
+        </View>
+        <Card style={styles.passportCard}>
           <ProgressBar current={completeDocs} label="Documents uploaded" total={documents.length} />
-          <Text style={styles.sectionText}>
-            Your strongest signals right now are verified identity, proof of address, and employment documents.
+          <Text style={styles.passportText}>
+            Your strongest signals right now: verified identity, proof of address, and employment documents.
           </Text>
-          <Button fullWidth={false} title="Open passport" onPress={() => router.push('/(applicant)/passport')} variant="ghost" />
         </Card>
 
-        <View style={styles.sectionHeaderStandalone}>
+        <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent applications</Text>
-          <Button fullWidth={false} title="View all" onPress={() => router.push('/(applicant)/applications')} variant="ghost" />
+          <Pressable onPress={() => router.push('/(applicant)/applications')}>
+            <Text style={styles.viewAll}>View all</Text>
+          </Pressable>
         </View>
 
         {currentApplicant.applications.map((application) => (
-          <Pressable key={application.id} onPress={() => router.push(`/(applicant)/applications/${application.id}`)}>
-            <Card style={styles.applicationCard}>
-              <View style={styles.applicationRow}>
-                <View style={styles.applicationMeta}>
-                  <Text style={styles.applicationAddress}>{application.propertyAddress}</Text>
-                  <Text style={styles.applicationSubtext}>{application.agencyName} • Updated {application.updatedAt}</Text>
+          <Pressable key={application.id} onPress={() => router.push(`/(applicant)/applications/${application.id}` as any)}>
+            <Card style={styles.appCard}>
+              <View style={styles.appRow}>
+                <View style={styles.appMeta}>
+                  <Text style={styles.appAddress}>{application.propertyAddress}</Text>
+                  <Text style={styles.appSubtext}>
+                    {application.agencyName} · Updated {application.updatedAt}
+                  </Text>
                 </View>
                 <Ionicons color={Colors.text.secondary} name="chevron-forward" size={18} />
               </View>
-              <View style={styles.applicationFooter}>
+              <View style={styles.appFooter}>
                 <Badge status={application.status} />
-                <Text style={styles.applicationRent}>{currency(application.monthlyRent)} pcm</Text>
+                <Text style={styles.appRent}>{currency(application.monthlyRent)} pcm</Text>
               </View>
             </Card>
           </Pressable>
@@ -108,128 +156,41 @@ export default function ApplicantDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    backgroundColor: Colors.background.primary,
-    flex: 1,
-  },
-  container: {
-    gap: Spacing.lg,
-    padding: Spacing.lg,
-  },
-  header: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  greeting: {
-    color: Colors.text.secondary,
-    fontSize: Typography.sizes.sm,
-  },
-  name: {
-    color: Colors.text.primary,
-    fontSize: Typography.sizes.xxl,
-    fontWeight: Typography.weights.bold,
-  },
-  heroCard: {
-    gap: Spacing.md,
-  },
-  heroTitle: {
-    color: Colors.text.inverse,
-    fontSize: Typography.sizes.xxl,
-    fontWeight: Typography.weights.bold,
-  },
-  heroText: {
-    color: '#3F372F',
-    fontSize: Typography.sizes.md,
-    lineHeight: 22,
-  },
-  heroStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  heroStat: {
-    color: Colors.text.inverse,
-    fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.bold,
-  },
-  heroLabel: {
-    color: '#4D453D',
-    fontSize: Typography.sizes.sm,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-  },
-  statCard: {
-    gap: Spacing.xs,
-    width: '47.5%',
-  },
-  statValue: {
-    color: Colors.text.primary,
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semibold,
-  },
-  statLabel: {
-    color: Colors.text.secondary,
-    fontSize: Typography.sizes.sm,
-    textTransform: 'capitalize',
-  },
-  actions: {
-    gap: Spacing.md,
-  },
-  sectionCard: {
-    gap: Spacing.md,
-  },
-  sectionHeader: {
+  safeArea: { backgroundColor: Colors.background.primary, flex: 1 },
+  container: { gap: Spacing.lg, padding: Spacing.lg },
+  header: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
+  greeting: { color: Colors.text.secondary, fontSize: Typography.sizes.sm },
+  name: { color: Colors.text.primary, fontSize: Typography.sizes.xxl, fontWeight: Typography.weights.bold },
+  heroCard: { gap: Spacing.md },
+  heroTitle: { color: Colors.text.inverse, fontSize: Typography.sizes.xxl, fontWeight: Typography.weights.bold },
+  heroText: { color: '#3F372F', fontSize: Typography.sizes.md, lineHeight: 22 },
+  heroStatsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  heroStat: { color: Colors.text.inverse, fontSize: Typography.sizes.xl, fontWeight: Typography.weights.bold },
+  heroLabel: { color: '#4D453D', fontSize: Typography.sizes.sm },
+  sectionTitle: { color: Colors.text.primary, fontSize: Typography.sizes.xl, fontWeight: Typography.weights.semibold },
+  sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  viewAll: { color: Colors.accent.gold, fontSize: Typography.sizes.sm, fontWeight: Typography.weights.semibold },
+  journeyCard: { gap: Spacing.sm },
+  journeyRow: { alignItems: 'center', flexDirection: 'row', gap: Spacing.md },
+  journeyIconWrap: {
     alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    borderColor: Colors.border.accent,
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
   },
-  sectionHeaderStandalone: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    color: Colors.text.primary,
-    fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.semibold,
-  },
-  sectionText: {
-    color: Colors.text.secondary,
-    fontSize: Typography.sizes.md,
-    lineHeight: 22,
-  },
-  applicationCard: {
-    gap: Spacing.md,
-  },
-  applicationRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  applicationMeta: {
-    flex: 1,
-    gap: 4,
-  },
-  applicationAddress: {
-    color: Colors.text.primary,
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semibold,
-  },
-  applicationSubtext: {
-    color: Colors.text.secondary,
-    fontSize: Typography.sizes.sm,
-  },
-  applicationFooter: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  applicationRent: {
-    color: Colors.text.primary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
-  },
+  journeyContent: { flex: 1, gap: 3 },
+  journeyLabel: { color: Colors.text.primary, fontSize: Typography.sizes.lg, fontWeight: Typography.weights.semibold },
+  journeySublabel: { color: Colors.text.secondary, fontSize: Typography.sizes.sm },
+  passportCard: { gap: Spacing.md },
+  passportText: { color: Colors.text.secondary, fontSize: Typography.sizes.md, lineHeight: 22 },
+  appCard: { gap: Spacing.md },
+  appRow: { alignItems: 'center', flexDirection: 'row', gap: Spacing.md },
+  appMeta: { flex: 1, gap: 4 },
+  appAddress: { color: Colors.text.primary, fontSize: Typography.sizes.lg, fontWeight: Typography.weights.semibold },
+  appSubtext: { color: Colors.text.secondary, fontSize: Typography.sizes.sm },
+  appFooter: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  appRent: { color: Colors.text.primary, fontSize: Typography.sizes.sm, fontWeight: Typography.weights.semibold },
 });

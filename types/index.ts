@@ -67,17 +67,93 @@ export interface Applicant {
   applications: PropertyApplication[];
 }
 
-export interface AgentProperty {
+// Full tenant journey types
+
+export type MaintenanceCategory =
+  | 'plumbing'
+  | 'electrical'
+  | 'heating'
+  | 'appliance'
+  | 'structural'
+  | 'damp_mould'
+  | 'other';
+
+export type MaintenancePriority = 'low' | 'medium' | 'high' | 'emergency';
+
+export type MaintenanceStatus = 'logged' | 'acknowledged' | 'in_progress' | 'resolved' | 'closed';
+
+export interface MaintenanceRequest {
   id: string;
   title: string;
-  address: string;
-  monthlyRent: number;
-  bedrooms: number;
-  bathrooms: number;
-  availableFrom: string;
-  status: 'open' | 'viewing' | 'offer_made';
-  applicants: string[];
+  description: string;
+  category: MaintenanceCategory;
+  priority: MaintenancePriority;
+  status: MaintenanceStatus;
+  loggedAt: string;
+  updatedAt: string;
+  landlordResponse?: string;
+  resolvedAt?: string;
+}
+
+export type ConditionRating = 'excellent' | 'good' | 'fair' | 'poor';
+
+export interface InventoryItem {
+  id: string;
+  room: string;
+  item: string;
+  condition: ConditionRating;
+  notes?: string;
+  photoTaken: boolean;
+  checkedAt: string;
+}
+
+export type MovingPhase = 'before_move' | 'move_day' | 'first_week' | 'first_month';
+
+export interface MovingChecklistItem {
+  id: string;
+  category: string;
+  title: string;
+  description: string;
+  actionUrl?: string;
+  completed: boolean;
+  duePhase: MovingPhase;
+}
+
+export type DepositScheme = 'TDS' | 'DPS' | 'MyDeposits';
+
+export type DepositStatus = 'held' | 'dispute_raised' | 'returned_full' | 'returned_partial';
+
+export interface DepositInfo {
+  amount: number;
+  scheme: DepositScheme;
+  schemeRef: string;
+  paidAt: string;
+  propertyAddress: string;
+  landlordName: string;
+  expectedReturnDate?: string;
+  status: DepositStatus;
+  deductionsClaimed?: number;
+  deductionsDisputed?: number;
+}
+
+export type ContactRole = 'landlord' | 'agent' | 'emergency' | 'utility' | 'other';
+
+export interface PropertyContact {
+  id: string;
+  name: string;
+  role: ContactRole;
+  phone?: string;
+  email?: string;
   notes?: string;
 }
 
-export type UserMode = 'applicant' | 'agent';
+export interface CurrentTenancy {
+  propertyAddress: string;
+  tenancyStartDate: string;
+  tenancyEndDate: string;
+  monthlyRent: number;
+  depositInfo: DepositInfo;
+  contacts: PropertyContact[];
+  maintenanceRequests: MaintenanceRequest[];
+  inventoryItems: InventoryItem[];
+}

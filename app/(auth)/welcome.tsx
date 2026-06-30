@@ -1,34 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { agentModeHighlights, applicantModeHighlights } from '@/data/mockData';
-import { UserMode } from '@/types';
+
+const highlights = [
+  'Build one verified passport and share it with any landlord or agent.',
+  'Document your home from day one so your deposit is always protected.',
+  'Track maintenance, know your rights, and never lose evidence again.',
+];
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ mode?: UserMode }>();
-  const mode = params.mode === 'agent' ? 'agent' : 'applicant';
-  const highlights = mode === 'agent' ? agentModeHighlights : applicantModeHighlights;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.eyebrow}>{mode === 'agent' ? 'Estate Agent Mode' : 'Applicant Mode'}</Text>
-        <Text style={styles.title}>
-          {mode === 'agent' ? 'Review better applicants, faster.' : 'Your renting profile, polished and ready.'}
-        </Text>
+        <Text style={styles.eyebrow}>Your renting companion</Text>
+        <Text style={styles.title}>Renting shouldn&apos;t be this hard.</Text>
         <Text style={styles.subtitle}>
-          {mode === 'agent'
-            ? 'Tenant Passport gives agents a cleaner, faster way to shortlist renters with confidence.'
-            : 'Create a premium tenant profile once, reuse it everywhere, and stop re-entering the same details.'}
+          One app for the whole journey — from application to moving out. Built for tenants, by someone who&apos;s been there.
         </Text>
 
         <Card tone="warm" style={styles.heroCard}>
-          <Text style={styles.heroCardTitle}>{mode === 'agent' ? 'Why agents like it' : 'Why renters like it'}</Text>
+          <Text style={styles.heroCardTitle}>What we do for you</Text>
           {highlights.map((item) => (
             <View key={item} style={styles.bulletRow}>
               <Ionicons color={Colors.accent.olive} name="checkmark-circle" size={18} />
@@ -38,9 +35,8 @@ export default function WelcomeScreen() {
         </Card>
 
         <View style={styles.actions}>
-          <Button title="Log in" onPress={() => router.push(`/(auth)/login?mode=${mode}`)} />
-          <Button title="Create account" onPress={() => router.push(`/(auth)/signup?mode=${mode}`)} variant="secondary" />
-          <Button title="Back to mode select" onPress={() => router.back()} variant="ghost" />
+          <Button title="Log in" onPress={() => router.push('/(auth)/login')} />
+          <Button title="Create account" onPress={() => router.push('/(auth)/signup')} variant="secondary" />
         </View>
       </ScrollView>
     </SafeAreaView>

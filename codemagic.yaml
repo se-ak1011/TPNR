@@ -102,14 +102,20 @@ workflows:
 
       - name: Build IPA
         script: |
+          set -euo pipefail
+
+          echo "=== ios/ workspace files ==="
+          ls -1 ios/*.xcworkspace 2>/dev/null || { echo "ERROR: no .xcworkspace found in ios/"; exit 1; }
+
           xcode-project build-ipa \
-            --workspace ios/*.xcworkspace \
+            --workspace ios/TenantPassport.xcworkspace \
             --scheme TenantPassport \
             --config Release
 
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+      - /tmp/xcodebuild_logs/
 
     publishing:
       app_store_connect:

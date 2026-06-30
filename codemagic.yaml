@@ -53,6 +53,13 @@ workflows:
         script: |
           npm install --legacy-peer-deps
 
+      - name: Verify Metro bundle resolves
+        script: |
+          set -eo pipefail
+          echo "=== Running Metro bundler standalone to catch missing modules early ==="
+          npx expo export --platform ios --output-dir /tmp/expo-bundle-check 2>&1
+          echo "=== Metro bundle: all modules resolved OK ==="
+
       - name: Expo prebuild iOS
         script: |
           npx expo prebuild --platform ios --clean

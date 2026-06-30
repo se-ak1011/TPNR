@@ -49,17 +49,6 @@ workflows:
           # every step in this build sees the same value (read by app.config.js).
           echo "TENANTPASSPORT_BUILD_NUMBER=$(date +%s)" >> $CM_ENV
 
-      - name: Write .env from Codemagic encrypted variables
-        script: |
-          # Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY
-          # as individual encrypted variables in Codemagic App Settings → Environment variables.
-          # (No group required — just add them directly under the workflow.)
-          cat > .env <<EOF
-          EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL
-          EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY
-          EOF
-          echo ".env written"
-
       - name: Install npm dependencies
         script: |
           npm install --legacy-peer-deps

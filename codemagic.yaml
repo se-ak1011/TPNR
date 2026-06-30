@@ -53,10 +53,18 @@ workflows:
         script: |
           npm install --legacy-peer-deps
 
-      - name: Verify Metro bundle resolves
+      - name: Verify key packages installed
         script: |
           set -eo pipefail
-          echo "=== Running Metro bundler standalone to catch missing modules early ==="
+          echo "=== node / npm versions ==="
+          node --version && npm --version
+          echo "=== expo-linking ==="
+          cat node_modules/expo-linking/package.json | python3 -c "import sys,json;d=json.load(sys.stdin);print('  v'+d['version'])" \
+            || { echo "  NOT IN node_modules — installing now"; npm install expo-linking expo-constants --legacy-peer-deps; }
+          echo "=== expo-constants ==="
+          cat node_modules/expo-constants/package.json | python3 -c "import sys,json;d=json.load(sys.stdin);print('  v'+d['version'])" \
+            || echo "  WARNING: expo-constants not found"
+          echo "=== Metro bundle smoke-test ==="
           npx expo export --platform ios --output-dir /tmp/expo-bundle-check 2>&1
           echo "=== Metro bundle: all modules resolved OK ==="
 

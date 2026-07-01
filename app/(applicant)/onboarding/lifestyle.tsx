@@ -1,20 +1,54 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { useAuth } from '@/context/auth';
+import { fetchPassport, savePassportStep } from '@/lib/db';
 import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
-import { currentApplicant } from '@/data/mockData';
+
+const SMOKING_OPTIONS = [
+  { id: 'non_smoker', label: 'Non-smoker' },
+  { id: 'smoker', label: 'Smoker' },
+  { id: 'outdoor_only', label: 'Outdoor only' },
+] as const;
+
+type SmokingStatus = typeof SMOKING_OPTIONS[number]['id'];
 
 export default function LifestyleOnboardingScreen() {
   const router = useRouter();
-  const [hasPets, setHasPets] = useState(currentApplicant.passport.hasPets);
-  const [hasChildren, setHasChildren] = useState(currentApplicant.passport.hasChildren);
-  const [smoking, setSmoking] = useState(currentApplicant.passport.smokingStatus.replace('_', ' '));
-  const [notes, setNotes] = useState(currentApplicant.passport.notesForAgent || '');
+  const { user } = useAuth();
+  const [hasPets, setHasPets] = useState(false);
+  const [hasChildren, setHasChildren] = useState(false);
+  const [smoking, setSmoking] = useState<SmokingStatus>('non_smoker');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchPassport(user.id).then((p) => {
+      if (!p) return;
+      setHasPets(p.hasPets ?? false);
+      setHasChildren(p.hasChildren ?? false);
+      if (p.smokingStatus) setSmoking(p.smokingStatus as SmokingStatus);
+      setNotes(p.notesForAgent ?? '');
+    });
+  }, [user]);
+
+  const handleContinue = async () => {
+    setSaving(true);
+    await savePassportStep(user!.id, {
+      has_pets: hasPets,
+      has_children: hasChildren,
+      smoking_status: smoking,
+      notes_for_agent: notes.trim() || null,
+    });
+    setSaving(false);
+    router.push('/(applicant)/onboarding/documents');
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -39,11 +73,19 @@ export default function LifestyleOnboardingScreen() {
             </View>
           </View>
 
-          <Input label="Smoking status" onChangeText={setSmoking} value={smoking} />
+          <View style={styles.toggleGroup}>
+            <Text style={styles.label}>Smoking</Text>
+            <View style={styles.toggleRow}>
+              {SMOKING_OPTIONS.map((opt) => (
+                <Toggle key={opt.id} label={opt.label} selected={smoking === opt.id} onPress={() => setSmoking(opt.id)} />
+              ))}
+            </View>
+          </View>
+
           <Input label="Notes for landlord or agent" multiline onChangeText={setNotes} value={notes} />
         </Card>
 
-        <Button title="Continue to documents" onPress={() => router.push('/(applicant)/onboarding/documents')} />
+        <Button disabled={saving} title={saving ? 'Saving…' : 'Continue to documents'} onPress={handleContinue} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -58,34 +100,13 @@ function Toggle({ label, selected, onPress }: { label: string; selected: boolean
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    backgroundColor: Colors.background.primary,
-    flex: 1,
-  },
-  container: {
-    gap: Spacing.lg,
-    padding: Spacing.lg,
-  },
-  title: {
-    color: Colors.text.primary,
-    fontSize: Typography.sizes.xxl,
-    fontWeight: Typography.weights.bold,
-  },
-  formCard: {
-    gap: Spacing.lg,
-  },
-  label: {
-    color: Colors.text.primary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-  },
-  toggleGroup: {
-    gap: Spacing.sm,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
+  safeArea: { backgroundColor: Colors.background.primary, flex: 1 },
+  container: { gap: Spacing.lg, padding: Spacing.lg },
+  title: { color: Colors.text.primary, fontSize: Typography.sizes.xxl, fontWeight: Typography.weights.bold },
+  formCard: { gap: Spacing.lg },
+  label: { color: Colors.text.primary, fontSize: Typography.sizes.sm, fontWeight: Typography.weights.medium },
+  toggleGroup: { gap: Spacing.sm },
+  toggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   toggle: {
     backgroundColor: Colors.background.tertiary,
     borderColor: Colors.border.default,
@@ -94,16 +115,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 12,
   },
-  toggleSelected: {
-    backgroundColor: `${Colors.accent.gold}22`,
-    borderColor: Colors.accent.gold,
-  },
-  toggleText: {
-    color: Colors.text.secondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-  },
-  toggleTextSelected: {
-    color: Colors.text.primary,
-  },
+  toggleSelected: { backgroundColor: `${Colors.accent.gold}22`, borderColor: Colors.accent.gold },
+  toggleText: { color: Colors.text.secondary, fontSize: Typography.sizes.sm, fontWeight: Typography.weights.medium },
+  toggleTextSelected: { color: Colors.text.primary },
 });

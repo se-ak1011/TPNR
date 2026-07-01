@@ -1,33 +1,54 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Card } from '@/components/ui/Card';
+import { useAuth } from '@/context/auth';
+import { fetchTenancy } from '@/lib/db';
+import { CurrentTenancy } from '@/types';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { currentTenancy } from '@/data/mockData';
-
-type SectionRow = {
-  icon: string;
-  label: string;
-  sublabel: string;
-  route: string;
-  accent?: string;
-};
 
 export default function MyHomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [tenancy, setTenancy] = useState<CurrentTenancy | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const { maintenanceRequests, inventoryItems, contacts } = currentTenancy;
-  const openRequests = maintenanceRequests.filter((r) => r.status !== 'resolved' && r.status !== 'closed');
+  useEffect(() => {
+    if (!user) return;
+    fetchTenancy(user.id).then((t) => {
+      setTenancy(t);
+      setLoading(false);
+    });
+  }, [user]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background.primary }}>
+        <ActivityIndicator color={Colors.accent.gold} />
+      </View>
+    );
+  }
+
+  const openRequests = (tenancy?.maintenanceRequests ?? []).filter(
+    (r) => r.status !== 'resolved' && r.status !== 'closed',
+  );
   const urgentCount = openRequests.filter((r) => r.priority === 'high' || r.priority === 'emergency').length;
+  const inventoryItems = tenancy?.inventoryItems ?? [];
   const photosMissing = inventoryItems.filter((i) => !i.photoTaken).length;
+  const contacts = tenancy?.contacts ?? [];
 
-  const sections: SectionRow[] = [
+  const sections = [
     {
       icon: 'camera-outline',
       label: 'Inventory',
-      sublabel: `${inventoryItems.length} items across ${[...new Set(inventoryItems.map((i) => i.room))].length} rooms${photosMissing > 0 ? ` · ${photosMissing} photo${photosMissing > 1 ? 's' : ''} missing` : ' · All photos taken'}`,
+      sublabel: inventoryItems.length > 0
+        ? `${inventoryItems.length} items · ${photosMissing > 0 ? `${photosMissing} photo${photosMissing > 1 ? 's' : ''} missing` : 'All photos taken'}`
+        : 'No items recorded yet',
       route: '/(applicant)/home/inventory',
+      accent: undefined as string | undefined,
     },
     {
       icon: 'construct-outline',
@@ -44,19 +65,21 @@ export default function MyHomeScreen() {
       label: 'Documents',
       sublabel: 'Tenancy agreement, correspondence & more',
       route: '/(applicant)/home/documents',
+      accent: undefined as string | undefined,
     },
     {
       icon: 'call-outline',
       label: 'Contacts',
-      sublabel: `${contacts.length} contacts — landlord, agent, emergency`,
+      sublabel: contacts.length > 0 ? `${contacts.length} contacts — landlord, agent, emergency` : 'No contacts added yet',
       route: '/(applicant)/home/contacts',
+      accent: undefined as string | undefined,
     },
   ];
 
-  const start = new Date(currentTenancy.tenancyStartDate);
-  const end = new Date(currentTenancy.tenancyEndDate);
+  const start = tenancy ? new Date(tenancy.tenancyStartDate) : null;
+  const end = tenancy ? new Date(tenancy.tenancyEndDate) : null;
   const today = new Date();
-  const daysLeft = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const daysLeft = end ? Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
   const monthsLeft = Math.ceil(daysLeft / 30);
 
   return (
@@ -64,31 +87,42 @@ export default function MyHomeScreen() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.title}>My Home</Text>
-          <Text style={styles.address}>{currentTenancy.propertyAddress}</Text>
+          <Text style={styles.address}>
+            {tenancy?.propertyAddress ?? 'No tenancy set up yet'}
+          </Text>
         </View>
 
-        <Card style={styles.tenancyCard}>
-          <View style={styles.tenancyRow}>
-            <View style={styles.tenancyStat}>
-              <Text style={styles.tenancyValue}>
-                {start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </Text>
-              <Text style={styles.tenancyLabel}>Tenancy started</Text>
+        {tenancy ? (
+          <Card style={styles.tenancyCard}>
+            <View style={styles.tenancyRow}>
+              <View style={styles.tenancyStat}>
+                <Text style={styles.tenancyValue}>
+                  {start!.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </Text>
+                <Text style={styles.tenancyLabel}>Tenancy started</Text>
+              </View>
+              <View style={styles.tenancyDivider} />
+              <View style={styles.tenancyStat}>
+                <Text style={[styles.tenancyValue, daysLeft < 60 ? styles.urgentText : {}]}>
+                  {monthsLeft > 0 ? `${monthsLeft} months` : `${daysLeft} days`}
+                </Text>
+                <Text style={styles.tenancyLabel}>Until lease end</Text>
+              </View>
+              <View style={styles.tenancyDivider} />
+              <View style={styles.tenancyStat}>
+                <Text style={styles.tenancyValue}>£{tenancy.monthlyRent.toLocaleString()}</Text>
+                <Text style={styles.tenancyLabel}>Monthly rent</Text>
+              </View>
             </View>
-            <View style={styles.tenancyDivider} />
-            <View style={styles.tenancyStat}>
-              <Text style={[styles.tenancyValue, daysLeft < 60 ? styles.urgentText : {}]}>
-                {monthsLeft > 0 ? `${monthsLeft} months` : `${daysLeft} days`}
-              </Text>
-              <Text style={styles.tenancyLabel}>Until lease end</Text>
-            </View>
-            <View style={styles.tenancyDivider} />
-            <View style={styles.tenancyStat}>
-              <Text style={styles.tenancyValue}>£{currentTenancy.monthlyRent.toLocaleString()}</Text>
-              <Text style={styles.tenancyLabel}>Monthly rent</Text>
-            </View>
-          </View>
-        </Card>
+          </Card>
+        ) : (
+          <Card style={styles.noTenancyCard} tone="muted">
+            <Ionicons color={Colors.text.muted} name="home-outline" size={28} />
+            <Text style={styles.noTenancyText}>
+              Your tenancy details will appear here once set up. In the meantime, you can still log maintenance issues.
+            </Text>
+          </Card>
+        )}
 
         <Text style={styles.sectionLabel}>Manage your home</Text>
 
@@ -136,12 +170,14 @@ const styles = StyleSheet.create({
   title: { color: Colors.text.primary, fontSize: Typography.sizes.xxxl, fontWeight: Typography.weights.bold },
   address: { color: Colors.text.secondary, fontSize: Typography.sizes.md, lineHeight: 22 },
   tenancyCard: {},
-  tenancyRow: { flexDirection: 'row', alignItems: 'center' },
-  tenancyStat: { flex: 1, gap: 4, alignItems: 'center' },
+  tenancyRow: { alignItems: 'center', flexDirection: 'row' },
+  tenancyStat: { alignItems: 'center', flex: 1, gap: 4 },
   tenancyValue: { color: Colors.text.primary, fontSize: Typography.sizes.md, fontWeight: Typography.weights.semibold, textAlign: 'center' },
   tenancyLabel: { color: Colors.text.muted, fontSize: Typography.sizes.xs, textAlign: 'center' },
-  tenancyDivider: { width: 1, height: 36, backgroundColor: Colors.border.default },
+  tenancyDivider: { backgroundColor: Colors.border.default, height: 36, width: 1 },
   urgentText: { color: Colors.accent.gold },
+  noTenancyCard: { alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.xl },
+  noTenancyText: { color: Colors.text.secondary, fontSize: Typography.sizes.md, lineHeight: 22, textAlign: 'center' },
   sectionLabel: { color: Colors.text.secondary, fontSize: Typography.sizes.sm, fontWeight: Typography.weights.semibold, letterSpacing: 0.5, textTransform: 'uppercase' },
   sectionCard: {},
   sectionRow: { alignItems: 'center', flexDirection: 'row', gap: Spacing.md },
@@ -158,7 +194,7 @@ const styles = StyleSheet.create({
   sectionTitle: { color: Colors.text.primary, fontSize: Typography.sizes.lg, fontWeight: Typography.weights.semibold },
   sectionSublabel: { color: Colors.text.secondary, fontSize: Typography.sizes.sm },
   alertCard: { borderColor: Colors.error, borderWidth: 1 },
-  alertRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start' },
+  alertRow: { alignItems: 'flex-start', flexDirection: 'row', gap: Spacing.md },
   alertContent: { flex: 1, gap: 4 },
   alertTitle: { color: Colors.error, fontSize: Typography.sizes.md, fontWeight: Typography.weights.semibold },
   alertText: { color: Colors.text.secondary, fontSize: Typography.sizes.sm, lineHeight: 20 },

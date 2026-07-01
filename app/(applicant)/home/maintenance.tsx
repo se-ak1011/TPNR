@@ -1,12 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Colors, Spacing, Typography } from '@/constants/theme';
-import { currentTenancy } from '@/data/mockData';
+import { useAuth } from '@/context/auth';
+import { fetchMaintenanceRequests } from '@/lib/db';
 import { MaintenancePriority, MaintenanceRequest, MaintenanceStatus } from '@/types';
+import { Colors, Spacing, Typography } from '@/constants/theme';
 
 const priorityConfig: Record<MaintenancePriority, { color: string; label: string }> = {
   low: { color: Colors.text.muted, label: 'Low' },
@@ -44,7 +47,11 @@ function RequestCard({ request }: { request: MaintenanceRequest }) {
   return (
     <Card style={[styles.requestCard, isResolved ? styles.resolvedCard : {}]}>
       <View style={styles.requestHeader}>
-        <Ionicons color={isResolved ? Colors.text.muted : priority.color} name={categoryIcons[request.category] as any} size={20} />
+        <Ionicons
+          color={isResolved ? Colors.text.muted : priority.color}
+          name={(categoryIcons[request.category] ?? 'build-outline') as any}
+          size={20}
+        />
         <View style={styles.requestMeta}>
           <Text style={[styles.requestTitle, isResolved ? styles.resolvedText : {}]}>{request.title}</Text>
           <Text style={styles.requestDate}>Logged {fmtDate(request.loggedAt)}</Text>
@@ -56,25 +63,42 @@ function RequestCard({ request }: { request: MaintenanceRequest }) {
         </View>
       </View>
       <Text style={styles.requestDescription}>{request.description}</Text>
-      {request.landlordResponse && (
+      {request.landlordResponse ? (
         <View style={styles.responseBox}>
           <Text style={styles.responseLabel}>Landlord response</Text>
           <Text style={styles.responseText}>{request.landlordResponse}</Text>
         </View>
-      )}
-      {!request.landlordResponse && !isResolved && (
+      ) : !isResolved ? (
         <Text style={styles.noResponse}>No response yet — logged {fmtDate(request.loggedAt)}</Text>
-      )}
+      ) : null}
     </Card>
   );
 }
 
 export default function MaintenanceScreen() {
   const router = useRouter();
-  const { maintenanceRequests } = currentTenancy;
+  const { user } = useAuth();
+  const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const open = maintenanceRequests.filter((r) => r.status !== 'resolved' && r.status !== 'closed');
-  const resolved = maintenanceRequests.filter((r) => r.status === 'resolved' || r.status === 'closed');
+  useEffect(() => {
+    if (!user) return;
+    fetchMaintenanceRequests(user.id).then((r) => {
+      setRequests(r);
+      setLoading(false);
+    });
+  }, [user]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background.primary }}>
+        <ActivityIndicator color={Colors.accent.gold} />
+      </View>
+    );
+  }
+
+  const open = requests.filter((r) => r.status !== 'resolved' && r.status !== 'closed');
+  const resolved = requests.filter((r) => r.status === 'resolved' || r.status === 'closed');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -107,22 +131,18 @@ export default function MaintenanceScreen() {
         {open.length > 0 && (
           <>
             <Text style={styles.groupLabel}>Open requests</Text>
-            {open.map((r) => (
-              <RequestCard key={r.id} request={r} />
-            ))}
+            {open.map((r) => <RequestCard key={r.id} request={r} />)}
           </>
         )}
 
         {resolved.length > 0 && (
           <>
             <Text style={styles.groupLabel}>Resolved</Text>
-            {resolved.map((r) => (
-              <RequestCard key={r.id} request={r} />
-            ))}
+            {resolved.map((r) => <RequestCard key={r.id} request={r} />)}
           </>
         )}
 
-        {maintenanceRequests.length === 0 && (
+        {requests.length === 0 && (
           <Card style={styles.emptyCard}>
             <Ionicons color={Colors.text.muted} name="checkmark-circle-outline" size={32} />
             <Text style={styles.emptyTitle}>No issues logged</Text>

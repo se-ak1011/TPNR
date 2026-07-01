@@ -1,491 +1,247 @@
 -- ============================================================
--- TENANT PASSPORT — Supabase Schema
--- Run this in the Supabase SQL Editor (Dashboard → SQL Editor → New query)
+-- Tenant Passport — Supabase schema
+-- Run once in the Supabase SQL editor (Dashboard → SQL Editor)
 -- ============================================================
 
--- ============================================================
--- ENUMS
--- ============================================================
-
-create type employment_status as enum (
-  'employed', 'self_employed', 'unemployed', 'student', 'retired'
-);
-
-create type smoking_status as enum (
-  'non_smoker', 'smoker', 'outside_only'
-);
-
-create type right_to_rent_type as enum (
-  'uk_passport', 'eu_settled', 'biometric_residence', 'visa', 'other'
-);
-
-create type application_status as enum (
-  'draft', 'submitted', 'viewed', 'shortlisted',
-  'viewing_invited', 'not_selected', 'accepted'
-);
-
-create type maintenance_category as enum (
-  'plumbing', 'electrical', 'heating', 'appliance',
-  'structural', 'damp_mould', 'other'
-);
-
-create type maintenance_priority as enum (
-  'low', 'medium', 'high', 'emergency'
-);
-
-create type maintenance_status as enum (
-  'logged', 'acknowledged', 'in_progress', 'resolved', 'closed'
-);
-
-create type condition_rating as enum (
-  'excellent', 'good', 'fair', 'poor'
-);
-
-create type moving_phase as enum (
-  'before_move', 'move_day', 'first_week', 'first_month'
-);
-
-create type deposit_scheme as enum (
-  'TDS', 'DPS', 'MyDeposits'
-);
-
-create type deposit_status as enum (
-  'held', 'dispute_raised', 'returned_full', 'returned_partial'
-);
-
-create type contact_role as enum (
-  'landlord', 'agent', 'emergency', 'utility', 'other'
-);
-
--- ============================================================
--- UTILITY: auto-update updated_at on every row change
--- ============================================================
-
-create or replace function handle_updated_at()
-returns trigger as $$
+-- Auto-update updated_at on every row change
+create or replace function update_updated_at()
+returns trigger language plpgsql as $$
 begin
   new.updated_at = now();
   return new;
 end;
-$$ language plpgsql;
+$$;
 
--- ============================================================
--- TABLE: profiles
--- One row per auth user; auto-created by trigger below.
--- ============================================================
-
-create table profiles (
-  id          uuid primary key references auth.users(id) on delete cascade,
-  full_name   text,
-  phone       text,
-  avatar_url  text,
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+-- ── tenant_passports ────────────────────────────────────────
+create table public.tenant_passports (
+  id                      uuid primary key default gen_random_uuid(),
+  user_id                 uuid references auth.users(id) on delete cascade not null unique,
+  full_name               text not null default '',
+  email                   text not null default '',
+  phone                   text not null default '',
+  current_address         text not null default '',
+  desired_move_in_date    text not null default '',
+  employment_status       text not null default 'employed',
+  employer                text,
+  job_title               text,
+  annual_income           integer,
+  monthly_budget          integer,
+  has_guarantor           boolean not null default false,
+  guarantor_name          text,
+  guarantor_relationship  text,
+  has_pets                boolean not null default false,
+  pet_details             text,
+  has_children            boolean not null default false,
+  number_of_dependants    integer default 0,
+  smoking_status          text not null default 'non_smoker',
+  right_to_rent           text not null default 'uk_citizen',
+  right_to_rent_expiry    text,
+  has_references          boolean not null default false,
+  reference_details       text,
+  notes_for_agent         text,
+  doc_photo_id            boolean not null default false,
+  doc_proof_of_address    boolean not null default false,
+  doc_bank_statements     boolean not null default false,
+  doc_employment_contract boolean not null default false,
+  doc_payslips            boolean not null default false,
+  doc_references          boolean not null default false,
+  is_complete             boolean not null default false,
+  completed_at            timestamptz,
+  created_at              timestamptz not null default now(),
+  updated_at              timestamptz not null default now()
 );
+alter table public.tenant_passports enable row level security;
+create policy "own_passport" on public.tenant_passports for all using (auth.uid() = user_id);
+create trigger trg_passport_updated before update on public.tenant_passports
+  for each row execute function update_updated_at();
 
-alter table profiles enable row level security;
-
-create policy "Users can view own profile"
-  on profiles for select
-  using (auth.uid() = id);
-
-create policy "Users can update own profile"
-  on profiles for update
-  using (auth.uid() = id);
-
--- Auto-create a profile row the moment someone signs up
+-- Auto-create a passport row when someone signs up
 create or replace function handle_new_user()
-returns trigger as $$
+returns trigger language plpgsql security definer as $$
 begin
-  insert into profiles (id, full_name)
+  insert into public.tenant_passports (user_id, full_name, email)
   values (
     new.id,
-    new.raw_user_meta_data ->> 'full_name'
+    coalesce(new.raw_user_meta_data->>'full_name', ''),
+    coalesce(new.email, '')
   );
   return new;
 end;
-$$ language plpgsql security definer;
-
+$$;
 create trigger on_auth_user_created
   after insert on auth.users
-  for each row execute procedure handle_new_user();
+  for each row execute function handle_new_user();
 
-create trigger set_profiles_updated_at
-  before update on profiles
-  for each row execute procedure handle_updated_at();
-
--- ============================================================
--- TABLE: passports
--- The tenant's pre-verified profile; one per user.
--- Monetary values stored as pence (integer) to avoid floats.
--- ============================================================
-
-create table passports (
-  id                      uuid primary key default gen_random_uuid(),
-  user_id                 uuid not null references auth.users(id) on delete cascade,
-
-  -- Personal details
-  date_of_birth           date,
-  current_address         text,
-  moved_in_date           date,
-  previous_address        text,
-
-  -- Employment
-  employment_status       employment_status,
-  employer_name           text,
-  job_title               text,
-  annual_income_pence     integer,
-  employment_start_date   date,
-
-  -- Previous tenancy reference
-  prev_landlord_name      text,
-  prev_landlord_phone     text,
-  prev_landlord_email     text,
-  reason_for_leaving      text,
-
-  -- Lifestyle
-  smoking_status          smoking_status,
-  has_pets                boolean not null default false,
-  pet_details             text,
-  occupants               integer not null default 1,
-
-  -- Right to rent
-  right_to_rent_type      right_to_rent_type,
-  right_to_rent_expiry    date,
-
-  -- Document upload checklist (true = file uploaded to storage)
-  has_photo_id            boolean not null default false,
-  has_right_to_rent_doc   boolean not null default false,
-  has_proof_of_income     boolean not null default false,
-  has_bank_statements     boolean not null default false,
-  has_references          boolean not null default false,
-  has_credit_check        boolean not null default false,
-
-  -- Credit check (result written by Supabase Edge Function via OpenAI)
-  credit_score            integer,
-  credit_check_date       timestamptz,
-  credit_summary          text,
-
-  -- Shareable link token (generate signed URL from this)
-  share_token             uuid unique default gen_random_uuid(),
-  share_token_expires     timestamptz,
-
-  created_at              timestamptz not null default now(),
-  updated_at              timestamptz not null default now(),
-
-  constraint passports_user_id_unique unique (user_id)
-);
-
-alter table passports enable row level security;
-
-create policy "Users can view own passport"
-  on passports for select
-  using (auth.uid() = user_id);
-
-create policy "Users can insert own passport"
-  on passports for insert
-  with check (auth.uid() = user_id);
-
-create policy "Users can update own passport"
-  on passports for update
-  using (auth.uid() = user_id);
-
-create trigger set_passports_updated_at
-  before update on passports
-  for each row execute procedure handle_updated_at();
-
--- ============================================================
--- TABLE: applications
--- Properties the tenant has applied for / is tracking.
--- ============================================================
-
-create table applications (
+-- ── property_applications ───────────────────────────────────
+create table public.property_applications (
   id               uuid primary key default gen_random_uuid(),
-  user_id          uuid not null references auth.users(id) on delete cascade,
-
-  property_address text not null,
+  user_id          uuid references auth.users(id) on delete cascade not null,
+  property_address text not null default '',
+  property_ref     text,
   agent_name       text,
-  agent_email      text,
-  agent_phone      text,
-  monthly_rent_pence integer not null,
-  bedrooms         integer,
-  status           application_status not null default 'draft',
-  applied_at       timestamptz,
+  agency_name      text,
+  monthly_rent     integer,
+  status           text not null default 'draft',
+  submitted_at     date,
   notes            text,
-
+  agent_notes      text,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
+alter table public.property_applications enable row level security;
+create policy "own_applications" on public.property_applications for all using (auth.uid() = user_id);
+create trigger trg_applications_updated before update on public.property_applications
+  for each row execute function update_updated_at();
 
-alter table applications enable row level security;
-
-create policy "Users can manage own applications"
-  on applications for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
-create trigger set_applications_updated_at
-  before update on applications
-  for each row execute procedure handle_updated_at();
-
--- ============================================================
--- TABLE: tenancies
--- Current and past tenancies.
--- All child tables (deposits, contacts, maintenance, inventory,
--- checklist) reference this table's id.
--- ============================================================
-
-create table tenancies (
-  id                  uuid primary key default gen_random_uuid(),
-  user_id             uuid not null references auth.users(id) on delete cascade,
-
-  property_address    text not null,
-  tenancy_start_date  date not null,
-  tenancy_end_date    date not null,
-  monthly_rent_pence  integer not null,
-  is_current          boolean not null default true,
-
-  created_at          timestamptz not null default now(),
-  updated_at          timestamptz not null default now()
+-- ── tenancies ───────────────────────────────────────────────
+-- One active tenancy per user. Deposit info stored inline.
+create table public.tenancies (
+  id                           uuid primary key default gen_random_uuid(),
+  user_id                      uuid references auth.users(id) on delete cascade not null unique,
+  property_address             text not null default '',
+  tenancy_start_date           date,
+  tenancy_end_date             date,
+  monthly_rent                 integer,
+  deposit_amount               integer,
+  deposit_scheme               text,
+  deposit_scheme_ref           text,
+  deposit_paid_at              date,
+  deposit_landlord_name        text,
+  deposit_expected_return_date date,
+  deposit_status               text default 'held',
+  deposit_deductions_claimed   integer,
+  deposit_deductions_disputed  integer,
+  created_at                   timestamptz not null default now(),
+  updated_at                   timestamptz not null default now()
 );
+alter table public.tenancies enable row level security;
+create policy "own_tenancy" on public.tenancies for all using (auth.uid() = user_id);
+create trigger trg_tenancies_updated before update on public.tenancies
+  for each row execute function update_updated_at();
 
-alter table tenancies enable row level security;
-
-create policy "Users can manage own tenancies"
-  on tenancies for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
-create trigger set_tenancies_updated_at
-  before update on tenancies
-  for each row execute procedure handle_updated_at();
-
--- ============================================================
--- TABLE: deposits
--- ============================================================
-
-create table deposits (
-  id                    uuid primary key default gen_random_uuid(),
-  tenancy_id            uuid not null references tenancies(id) on delete cascade,
-
-  amount_pence          integer not null,
-  scheme                deposit_scheme not null,
-  scheme_ref            text not null,
-  paid_at               date not null,
-  status                deposit_status not null default 'held',
-  expected_return_date  date,
-  deductions_claimed_pence  integer,
-  deductions_disputed_pence integer,
-
-  created_at            timestamptz not null default now(),
-  updated_at            timestamptz not null default now()
+-- ── property_contacts ───────────────────────────────────────
+create table public.property_contacts (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid references auth.users(id) on delete cascade not null,
+  name       text not null,
+  role       text not null,
+  phone      text,
+  email      text,
+  notes      text,
+  created_at timestamptz not null default now()
 );
+alter table public.property_contacts enable row level security;
+create policy "own_contacts" on public.property_contacts for all using (auth.uid() = user_id);
 
-alter table deposits enable row level security;
-
-create policy "Users can manage own deposits"
-  on deposits for all
-  using (
-    tenancy_id in (select id from tenancies where user_id = auth.uid())
-  )
-  with check (
-    tenancy_id in (select id from tenancies where user_id = auth.uid())
-  );
-
-create trigger set_deposits_updated_at
-  before update on deposits
-  for each row execute procedure handle_updated_at();
-
--- ============================================================
--- TABLE: contacts
--- ============================================================
-
-create table contacts (
-  id          uuid primary key default gen_random_uuid(),
-  tenancy_id  uuid not null references tenancies(id) on delete cascade,
-
-  name        text not null,
-  role        contact_role not null,
-  phone       text,
-  email       text,
-  notes       text,
-
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
-);
-
-alter table contacts enable row level security;
-
-create policy "Users can manage own contacts"
-  on contacts for all
-  using (
-    tenancy_id in (select id from tenancies where user_id = auth.uid())
-  )
-  with check (
-    tenancy_id in (select id from tenancies where user_id = auth.uid())
-  );
-
-create trigger set_contacts_updated_at
-  before update on contacts
-  for each row execute procedure handle_updated_at();
-
--- ============================================================
--- TABLE: maintenance_requests
--- ============================================================
-
-create table maintenance_requests (
+-- ── maintenance_requests ────────────────────────────────────
+create table public.maintenance_requests (
   id                uuid primary key default gen_random_uuid(),
-  tenancy_id        uuid not null references tenancies(id) on delete cascade,
-
+  user_id           uuid references auth.users(id) on delete cascade not null,
   title             text not null,
-  description       text not null,
-  category          maintenance_category not null,
-  priority          maintenance_priority not null,
-  status            maintenance_status not null default 'logged',
+  description       text not null default '',
+  category          text not null,
+  priority          text not null,
+  status            text not null default 'logged',
+  logged_at         date not null default current_date,
   landlord_response text,
-  resolved_at       timestamptz,
-
+  resolved_at       date,
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()
 );
+alter table public.maintenance_requests enable row level security;
+create policy "own_maintenance" on public.maintenance_requests for all using (auth.uid() = user_id);
+create trigger trg_maintenance_updated before update on public.maintenance_requests
+  for each row execute function update_updated_at();
 
-alter table maintenance_requests enable row level security;
-
-create policy "Users can manage own maintenance requests"
-  on maintenance_requests for all
-  using (
-    tenancy_id in (select id from tenancies where user_id = auth.uid())
-  )
-  with check (
-    tenancy_id in (select id from tenancies where user_id = auth.uid())
-  );
-
-create trigger set_maintenance_requests_updated_at
-  before update on maintenance_requests
-  for each row execute procedure handle_updated_at();
-
--- ============================================================
--- TABLE: inventory_items
--- ============================================================
-
-create table inventory_items (
+-- ── inventory_items ─────────────────────────────────────────
+create table public.inventory_items (
   id          uuid primary key default gen_random_uuid(),
-  tenancy_id  uuid not null references tenancies(id) on delete cascade,
-
+  user_id     uuid references auth.users(id) on delete cascade not null,
   room        text not null,
   item        text not null,
-  condition   condition_rating not null,
+  condition   text not null,
   notes       text,
   photo_taken boolean not null default false,
-  photo_path  text,  -- Storage path: {user_id}/{item_id}.jpg
-  checked_at  timestamptz not null default now(),
-
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  checked_at  date not null default current_date,
+  created_at  timestamptz not null default now()
 );
+alter table public.inventory_items enable row level security;
+create policy "own_inventory" on public.inventory_items for all using (auth.uid() = user_id);
 
-alter table inventory_items enable row level security;
-
-create policy "Users can manage own inventory items"
-  on inventory_items for all
-  using (
-    tenancy_id in (select id from tenancies where user_id = auth.uid())
-  )
-  with check (
-    tenancy_id in (select id from tenancies where user_id = auth.uid())
-  );
-
-create trigger set_inventory_items_updated_at
-  before update on inventory_items
-  for each row execute procedure handle_updated_at();
-
--- ============================================================
--- TABLE: moving_checklist_items
--- ============================================================
-
-create table moving_checklist_items (
+-- ── moving_checklist_items ──────────────────────────────────
+create table public.moving_checklist_items (
   id          uuid primary key default gen_random_uuid(),
-  tenancy_id  uuid not null references tenancies(id) on delete cascade,
-
+  user_id     uuid references auth.users(id) on delete cascade not null,
   category    text not null,
   title       text not null,
-  description text,
+  description text not null,
   action_url  text,
   completed   boolean not null default false,
-  due_phase   moving_phase not null,
-
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  due_phase   text not null,
+  sort_order  integer not null default 0,
+  created_at  timestamptz not null default now()
 );
+alter table public.moving_checklist_items enable row level security;
+create policy "own_checklist" on public.moving_checklist_items for all using (auth.uid() = user_id);
 
-alter table moving_checklist_items enable row level security;
+-- ── Credit score & joint passport additions ──────────────────
+alter table public.tenant_passports
+  add column if not exists credit_score         integer,
+  add column if not exists credit_score_updated_at timestamptz,
+  add column if not exists linked_partner_id    uuid references auth.users(id),
+  add column if not exists linked_partner_name  text;
 
-create policy "Users can manage own checklist items"
-  on moving_checklist_items for all
-  using (
-    tenancy_id in (select id from tenancies where user_id = auth.uid())
-  )
-  with check (
-    tenancy_id in (select id from tenancies where user_id = auth.uid())
-  );
+-- Partner invites (magic-link flow)
+create table if not exists public.passport_invites (
+  id              uuid primary key default gen_random_uuid(),
+  inviter_user_id uuid references auth.users(id) on delete cascade not null,
+  inviter_name    text not null default '',
+  invitee_email   text not null,
+  invitee_name    text,
+  status          text not null default 'pending'
+    check (status in ('pending', 'accepted')),
+  created_at      timestamptz not null default now()
+);
+alter table public.passport_invites enable row level security;
+create policy "own_invites_as_inviter"
+  on public.passport_invites for all using (auth.uid() = inviter_user_id);
+create policy "own_invites_as_invitee"
+  on public.passport_invites for select using (invitee_email = auth.email());
 
-create trigger set_moving_checklist_items_updated_at
-  before update on moving_checklist_items
-  for each row execute procedure handle_updated_at();
+-- Security-definer function: links both passports atomically
+create or replace function accept_partner_invite(invite_id uuid)
+returns void language plpgsql security definer as $$
+declare
+  v_invite          record;
+  v_invitee_user_id uuid := auth.uid();
+  v_invitee_name    text;
+begin
+  select * into v_invite
+  from public.passport_invites
+  where id = invite_id
+    and invitee_email = auth.email()
+    and status = 'pending';
 
--- ============================================================
--- STORAGE BUCKETS + RLS
--- Files are stored under {user_id}/ so RLS can enforce ownership
--- ============================================================
+  if not found then
+    raise exception 'invite not found or already accepted';
+  end if;
 
-insert into storage.buckets (id, name, public)
-values ('inventory-photos', 'inventory-photos', false)
-on conflict (id) do nothing;
+  select full_name into v_invitee_name
+  from public.tenant_passports
+  where user_id = v_invitee_user_id;
 
-insert into storage.buckets (id, name, public)
-values ('passport-documents', 'passport-documents', false)
-on conflict (id) do nothing;
+  update public.tenant_passports
+    set linked_partner_id   = v_invitee_user_id,
+        linked_partner_name = coalesce(v_invitee_name, '')
+  where user_id = v_invite.inviter_user_id;
 
--- inventory-photos policies
-create policy "Users can upload own inventory photos"
-  on storage.objects for insert
-  with check (
-    bucket_id = 'inventory-photos'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
+  update public.tenant_passports
+    set linked_partner_id   = v_invite.inviter_user_id,
+        linked_partner_name = coalesce(v_invite.inviter_name, '')
+  where user_id = v_invitee_user_id;
 
-create policy "Users can view own inventory photos"
-  on storage.objects for select
-  using (
-    bucket_id = 'inventory-photos'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
-
-create policy "Users can delete own inventory photos"
-  on storage.objects for delete
-  using (
-    bucket_id = 'inventory-photos'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
-
--- passport-documents policies
-create policy "Users can upload own passport documents"
-  on storage.objects for insert
-  with check (
-    bucket_id = 'passport-documents'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
-
-create policy "Users can view own passport documents"
-  on storage.objects for select
-  using (
-    bucket_id = 'passport-documents'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
-
-create policy "Users can delete own passport documents"
-  on storage.objects for delete
-  using (
-    bucket_id = 'passport-documents'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
+  update public.passport_invites
+    set status = 'accepted', invitee_name = coalesce(v_invitee_name, '')
+  where id = invite_id;
+end;
+$$;

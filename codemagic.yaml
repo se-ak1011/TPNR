@@ -66,13 +66,22 @@ workflows:
           echo "=== expo-constants ==="
           node -e "console.log('  v' + require('./node_modules/expo-constants/package.json').version)" \
             || { echo "FATAL: expo-constants missing after npm ci"; exit 1; }
-          echo "=== Metro bundle smoke-test ==="
-          npx expo export --platform ios --output-dir /tmp/expo-bundle-check
-          echo "=== Metro bundle: all modules resolved OK ==="
 
       - name: Expo prebuild iOS
         script: |
-          npx expo prebuild --platform ios --clean
+          # --no-install prevents expo prebuild from running its own npm install,
+          # which could restructure node_modules and drop expo-linking.
+          npx expo prebuild --platform ios --clean --no-install
+
+      - name: Verify Metro bundle resolves after prebuild
+        script: |
+          set -eo pipefail
+          echo "=== expo-linking still present after prebuild? ==="
+          node -e "console.log('  v' + require('./node_modules/expo-linking/package.json').version)" \
+            || { echo "FATAL: expo-linking missing after prebuild — prebuild modified node_modules"; exit 1; }
+          echo "=== Metro bundle smoke-test ==="
+          npx expo export --platform ios --output-dir /tmp/expo-bundle-check
+          echo "=== Metro bundle: all modules resolved OK ==="
 
       - name: Validate App Store Connect secrets
         script: |

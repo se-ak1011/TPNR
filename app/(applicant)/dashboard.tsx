@@ -73,15 +73,15 @@ export default function DashboardScreen() {
             Passport to move-in to move-out — everything you need to rent with confidence.
           </Text>
           <View style={styles.heroStatsRow}>
-            <View>
+            <View style={styles.heroStatItem}>
               <Text style={styles.heroStat}>{currentApplicant.applications.length}</Text>
               <Text style={styles.heroLabel}>Applications</Text>
             </View>
-            <View>
+            <View style={styles.heroStatItem}>
               <Text style={styles.heroStat}>{currency(currentApplicant.passport.monthlyBudget)}</Text>
               <Text style={styles.heroLabel}>Monthly budget</Text>
             </View>
-            <View>
+            <View style={styles.heroStatItem}>
               <Text style={styles.heroStat}>{currentTenancy.inventoryItems.length}</Text>
               <Text style={styles.heroLabel}>Items documented</Text>
             </View>
@@ -164,7 +164,8 @@ const styles = StyleSheet.create({
   heroCard: { gap: Spacing.md },
   heroTitle: { color: Colors.text.inverse, fontSize: Typography.sizes.xxl, fontWeight: Typography.weights.bold },
   heroText: { color: '#3F372F', fontSize: Typography.sizes.md, lineHeight: 22 },
-  heroStatsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  heroStatsRow: { flexDirection: 'row', gap: Spacing.md },
+  heroStatItem: { flex: 1 },
   heroStat: { color: Colors.text.inverse, fontSize: Typography.sizes.xl, fontWeight: Typography.weights.bold },
   heroLabel: { color: '#4D453D', fontSize: Typography.sizes.sm },
   sectionTitle: { color: Colors.text.primary, fontSize: Typography.sizes.xl, fontWeight: Typography.weights.semibold },

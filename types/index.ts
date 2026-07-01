@@ -35,6 +35,17 @@ export interface TenantPassport {
   notesForAgent?: string;
   completedAt?: string;
   isComplete: boolean;
+  creditScore?: number;
+  creditScoreUpdatedAt?: string;
+  linkedPartnerId?: string;
+  linkedPartnerName?: string;
+}
+
+export interface PassportInvite {
+  id: string;
+  inviterName: string;
+  inviteeEmail: string;
+  status: 'pending' | 'accepted';
 }
 
 export interface DocumentChecklist {

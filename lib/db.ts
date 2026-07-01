@@ -14,6 +14,7 @@ import {
   MaintenanceStatus,
   MovingChecklistItem,
   MovingPhase,
+  PassportInvite,
   PropertyApplication,
   PropertyContact,
   TenantPassport,
@@ -57,6 +58,10 @@ function toPassport(row: Record<string, any>): TenantPassport {
     },
     isComplete: row.is_complete,
     completedAt: row.completed_at ?? undefined,
+    creditScore: row.credit_score ?? undefined,
+    creditScoreUpdatedAt: row.credit_score_updated_at ?? undefined,
+    linkedPartnerId: row.linked_partner_id ?? undefined,
+    linkedPartnerName: row.linked_partner_name ?? undefined,
   };
 }
 
@@ -332,6 +337,66 @@ export async function fetchChecklist(userId: string): Promise<MovingChecklistIte
 
 export async function toggleChecklistItem(id: string, completed: boolean): Promise<void> {
   await supabase.from('moving_checklist_items').update({ completed }).eq('id', id);
+}
+
+// ── Credit score ──────────────────────────────────────────────
+
+export async function updateCreditScore(userId: string, score: number | null): Promise<void> {
+  await supabase.from('tenant_passports').update({
+    credit_score: score,
+    credit_score_updated_at: score !== null ? new Date().toISOString() : null,
+  }).eq('user_id', userId);
+}
+
+// ── Partner invites ───────────────────────────────────────────
+
+export async function sendPartnerInvite(
+  inviterUserId: string,
+  inviterName: string,
+  inviteeEmail: string,
+): Promise<void> {
+  await supabase.from('passport_invites').insert({
+    inviter_user_id: inviterUserId,
+    inviter_name: inviterName,
+    invitee_email: inviteeEmail.toLowerCase().trim(),
+  });
+  // Sends a magic sign-in link to the partner via Supabase Auth
+  await supabase.auth.signInWithOtp({ email: inviteeEmail.trim() });
+}
+
+function toInvite(row: Record<string, any>): PassportInvite {
+  return {
+    id: row.id,
+    inviterName: row.inviter_name ?? '',
+    inviteeEmail: row.invitee_email,
+    status: row.status as 'pending' | 'accepted',
+  };
+}
+
+export async function fetchSentInvite(userId: string): Promise<PassportInvite | null> {
+  const { data } = await supabase
+    .from('passport_invites')
+    .select('id, inviter_name, invitee_email, status')
+    .eq('inviter_user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? toInvite(data) : null;
+}
+
+export async function fetchPendingInviteForMe(): Promise<PassportInvite | null> {
+  // RLS policy automatically filters to invitee_email = auth.email()
+  const { data } = await supabase
+    .from('passport_invites')
+    .select('id, inviter_name, invitee_email, status')
+    .eq('status', 'pending')
+    .limit(1)
+    .maybeSingle();
+  return data ? toInvite(data) : null;
+}
+
+export async function acceptPartnerInvite(inviteId: string): Promise<void> {
+  await supabase.rpc('accept_partner_invite', { invite_id: inviteId });
 }
 
 export async function fetchMaintenanceRequests(userId: string): Promise<MaintenanceRequest[]> {

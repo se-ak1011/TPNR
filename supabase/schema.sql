@@ -183,3 +183,65 @@ create table public.moving_checklist_items (
 );
 alter table public.moving_checklist_items enable row level security;
 create policy "own_checklist" on public.moving_checklist_items for all using (auth.uid() = user_id);
+
+-- ── Credit score & joint passport additions ──────────────────
+alter table public.tenant_passports
+  add column if not exists credit_score         integer,
+  add column if not exists credit_score_updated_at timestamptz,
+  add column if not exists linked_partner_id    uuid references auth.users(id),
+  add column if not exists linked_partner_name  text;
+
+-- Partner invites (magic-link flow)
+create table if not exists public.passport_invites (
+  id              uuid primary key default gen_random_uuid(),
+  inviter_user_id uuid references auth.users(id) on delete cascade not null,
+  inviter_name    text not null default '',
+  invitee_email   text not null,
+  invitee_name    text,
+  status          text not null default 'pending'
+    check (status in ('pending', 'accepted')),
+  created_at      timestamptz not null default now()
+);
+alter table public.passport_invites enable row level security;
+create policy "own_invites_as_inviter"
+  on public.passport_invites for all using (auth.uid() = inviter_user_id);
+create policy "own_invites_as_invitee"
+  on public.passport_invites for select using (invitee_email = auth.email());
+
+-- Security-definer function: links both passports atomically
+create or replace function accept_partner_invite(invite_id uuid)
+returns void language plpgsql security definer as $$
+declare
+  v_invite          record;
+  v_invitee_user_id uuid := auth.uid();
+  v_invitee_name    text;
+begin
+  select * into v_invite
+  from public.passport_invites
+  where id = invite_id
+    and invitee_email = auth.email()
+    and status = 'pending';
+
+  if not found then
+    raise exception 'invite not found or already accepted';
+  end if;
+
+  select full_name into v_invitee_name
+  from public.tenant_passports
+  where user_id = v_invitee_user_id;
+
+  update public.tenant_passports
+    set linked_partner_id   = v_invitee_user_id,
+        linked_partner_name = coalesce(v_invitee_name, '')
+  where user_id = v_invite.inviter_user_id;
+
+  update public.tenant_passports
+    set linked_partner_id   = v_invite.inviter_user_id,
+        linked_partner_name = coalesce(v_invite.inviter_name, '')
+  where user_id = v_invitee_user_id;
+
+  update public.passport_invites
+    set status = 'accepted', invitee_name = coalesce(v_invitee_name, '')
+  where id = invite_id;
+end;
+$$;

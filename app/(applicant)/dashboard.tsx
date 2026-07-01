@@ -9,6 +9,8 @@ import { Colors, Spacing, Typography } from '@/constants/theme';
 import { currentApplicant, currentTenancy, movingChecklist } from '@/data/mockData';
 
 const currency = (value?: number) => (value ? `£${value.toLocaleString()}` : '—');
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 type JourneySection = {
   icon: string;
@@ -138,7 +140,7 @@ export default function DashboardScreen() {
                 <View style={styles.appMeta}>
                   <Text style={styles.appAddress}>{application.propertyAddress}</Text>
                   <Text style={styles.appSubtext}>
-                    {application.agencyName} · Updated {application.updatedAt}
+                    {application.agencyName} · Updated {fmtDate(application.updatedAt)}
                   </Text>
                 </View>
                 <Ionicons color={Colors.text.secondary} name="chevron-forward" size={18} />

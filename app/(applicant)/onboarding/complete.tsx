@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, Typography } from '@/constants/theme';
@@ -11,6 +12,9 @@ export default function OnboardingCompleteScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={styles.iconWrap}>
+          <Ionicons name="checkmark-circle" size={80} color={Colors.success} />
+        </View>
         <Card tone="warm" style={styles.heroCard}>
           <Text style={styles.title}>Passport complete</Text>
           <Text style={styles.subtitle}>
@@ -35,6 +39,10 @@ const styles = StyleSheet.create({
     gap: Spacing.lg,
     justifyContent: 'center',
     padding: Spacing.lg,
+  },
+  iconWrap: {
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
   },
   heroCard: {
     gap: Spacing.md,

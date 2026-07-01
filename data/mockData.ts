@@ -277,8 +277,8 @@ export const applicantModeHighlights = [
 // Current tenancy mock data (the home Maya is already living in)
 export const currentTenancy: CurrentTenancy = {
   propertyAddress: '9 Murray Street, Ancoats, Manchester M4 5HG',
-  tenancyStartDate: '2024-09-01',
-  tenancyEndDate: '2025-08-31',
+  tenancyStartDate: '2025-09-01',
+  tenancyEndDate: '2027-08-31',
   monthlyRent: 1625,
   depositInfo: {
     amount: 1875,
@@ -287,7 +287,7 @@ export const currentTenancy: CurrentTenancy = {
     paidAt: '2024-08-20',
     propertyAddress: '9 Murray Street, Ancoats, Manchester M4 5HG',
     landlordName: 'James Hartley',
-    expectedReturnDate: '2025-09-14',
+    expectedReturnDate: '2027-09-14',
     status: 'held',
   },
   contacts: [

@@ -18,6 +18,27 @@ const documents = [
 
 const money = (value?: number) => (value ? `£${value.toLocaleString()}` : '—');
 
+const EMPLOYMENT_LABELS: Record<string, string> = {
+  employed: 'Employed',
+  self_employed: 'Self-employed',
+  unemployed: 'Unemployed',
+  student: 'Student',
+  retired: 'Retired',
+};
+
+const SMOKING_LABELS: Record<string, string> = {
+  non_smoker: 'Non-smoker',
+  smoker: 'Smoker',
+  outdoor_only: 'Outdoor only',
+};
+
+const RIGHT_TO_RENT_LABELS: Record<string, string> = {
+  uk_citizen: 'UK Citizen',
+  eu_settled: 'EU Settled Status',
+  visa: 'Visa holder',
+  other: 'Other',
+};
+
 export default function PassportScreen() {
   const passport = currentApplicant.passport;
 
@@ -48,7 +69,7 @@ export default function PassportScreen() {
 
         <Card style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Employment & affordability</Text>
-          <Detail label="Employment status" value={passport.employmentStatus.replace('_', ' ')} />
+          <Detail label="Employment status" value={EMPLOYMENT_LABELS[passport.employmentStatus] ?? passport.employmentStatus} />
           <Detail label="Employer" value={passport.employer || 'Not provided'} />
           <Detail label="Job title" value={passport.jobTitle || 'Not provided'} />
           <Detail label="Annual income" value={money(passport.annualIncome)} />
@@ -60,8 +81,8 @@ export default function PassportScreen() {
           <Text style={styles.sectionTitle}>Lifestyle & references</Text>
           <Detail label="Pets" value={passport.hasPets ? passport.petDetails || 'Yes' : 'No pets'} />
           <Detail label="Children / dependants" value={passport.hasChildren ? `${passport.numberOfDependants || 0} dependant(s)` : 'None'} />
-          <Detail label="Smoking" value={passport.smokingStatus.replace('_', ' ')} />
-          <Detail label="Right to Rent" value={passport.rightToRent.replace('_', ' ')} />
+          <Detail label="Smoking" value={SMOKING_LABELS[passport.smokingStatus] ?? passport.smokingStatus} />
+          <Detail label="Right to Rent" value={RIGHT_TO_RENT_LABELS[passport.rightToRent] ?? passport.rightToRent} />
           <Detail label="References" value={passport.hasReferences ? passport.referenceDetails || 'Available' : 'Not yet added'} />
         </Card>
 

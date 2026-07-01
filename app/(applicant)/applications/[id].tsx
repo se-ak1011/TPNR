@@ -8,6 +8,9 @@ import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { applicationStatusOrder, currentApplicant } from '@/data/mockData';
 
+const fmtDate = (d?: string) =>
+  d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined;
+
 export default function ApplicationDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -39,8 +42,8 @@ export default function ApplicationDetailScreen() {
         <Card style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Application details</Text>
           <Detail label="Reference" value={application.propertyRef || 'Not provided'} />
-          <Detail label="Submitted" value={application.submittedAt || 'Saved as draft'} />
-          <Detail label="Last updated" value={application.updatedAt} />
+          <Detail label="Submitted" value={fmtDate(application.submittedAt) || 'Saved as draft'} />
+          <Detail label="Last updated" value={fmtDate(application.updatedAt) ?? application.updatedAt} />
           <Detail label="Monthly rent" value={application.monthlyRent ? `£${application.monthlyRent.toLocaleString()} pcm` : 'Not set'} />
           <Detail label="Your notes" value={application.notes || 'No notes added'} />
           <Detail label="Agent notes" value={application.agentNotes || 'No updates yet'} />

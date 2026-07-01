@@ -1,84 +1,56 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { useAuth } from '@/context/auth';
+import { fetchChecklist, fetchTenancy } from '@/lib/db';
+import { CurrentTenancy, DepositScheme, MovingChecklistItem } from '@/types';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { currentTenancy, movingChecklist } from '@/data/mockData';
+
+const schemeColors: Record<DepositScheme, string> = {
+  TDS: Colors.accent.gold,
+  DPS: Colors.accent.olive,
+  MyDeposits: '#4A90D9',
+};
+
+const statusLabel: Record<string, string> = {
+  held: 'Protected & held',
+  dispute_raised: 'Dispute in progress',
+  returned_full: 'Returned in full',
+  returned_partial: 'Partially returned',
+};
 
 export default function MovingScreen() {
   const router = useRouter();
-  const { depositInfo } = currentTenancy;
+  const { user } = useAuth();
+  const [tenancy, setTenancy] = useState<CurrentTenancy | null>(null);
+  const [checklist, setChecklist] = useState<MovingChecklistItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const completed = movingChecklist.filter((i) => i.completed).length;
-  const total = movingChecklist.length;
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([fetchTenancy(user.id), fetchChecklist(user.id)]).then(([t, cl]) => {
+      setTenancy(t);
+      setChecklist(cl);
+      setLoading(false);
+    });
+  }, [user]);
 
-  const schemeColors: Record<string, string> = {
-    TDS: Colors.accent.gold,
-    DPS: Colors.accent.olive,
-    MyDeposits: '#4A90D9',
-  };
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background.primary }}>
+        <ActivityIndicator color={Colors.accent.gold} />
+      </View>
+    );
+  }
 
-  const statusLabel: Record<string, string> = {
-    held: 'Protected & held',
-    dispute_raised: 'Dispute in progress',
-    returned_full: 'Returned in full',
-    returned_partial: 'Partially returned',
-  };
-
-  type Section = {
-    icon: string;
-    label: string;
-    route: string;
-    children: React.ReactNode;
-  };
-
-  const sections: Section[] = [
-    {
-      icon: 'checkbox-outline',
-      label: 'Moving Checklist',
-      route: '/(applicant)/moving/checklist',
-      children: (
-        <>
-          <ProgressBar current={completed} label={`${completed} of ${total} tasks complete`} total={total} />
-          {completed < total && (
-            <Text style={styles.pendingText}>
-              {total - completed} task{total - completed > 1 ? 's' : ''} still to do — don&apos;t miss council tax
-              or DVLA.
-            </Text>
-          )}
-        </>
-      ),
-    },
-    {
-      icon: 'wallet-outline',
-      label: 'Deposit Tracker',
-      route: '/(applicant)/moving/deposit',
-      children: (
-        <View style={styles.depositRow}>
-          <View>
-            <Text style={styles.depositAmount}>£{depositInfo.amount.toLocaleString()}</Text>
-            <Text style={styles.depositSub}>{statusLabel[depositInfo.status]}</Text>
-          </View>
-          <View style={[styles.schemeBadge, { borderColor: schemeColors[depositInfo.scheme] }]}>
-            <Text style={[styles.schemeLabel, { color: schemeColors[depositInfo.scheme] }]}>{depositInfo.scheme}</Text>
-          </View>
-        </View>
-      ),
-    },
-    {
-      icon: 'shield-outline',
-      label: 'Deposit Dispute Guide',
-      route: '/(applicant)/moving/dispute',
-      children: (
-        <Text style={styles.disputeText}>
-          Know your rights before move-out. Step-by-step guide to challenging unfair deductions through TDS, DPS, or
-          MyDeposits.
-        </Text>
-      ),
-    },
-  ];
+  const completed = checklist.filter((i) => i.completed).length;
+  const total = checklist.length;
+  const depositInfo = tenancy?.depositInfo;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -88,20 +60,67 @@ export default function MovingScreen() {
           <Text style={styles.subtitle}>Admin, deposit protection, and your rights at move-out.</Text>
         </View>
 
-        {sections.map((section) => (
-          <Pressable key={section.label} onPress={() => router.push(section.route as any)}>
-            <Card style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.iconWrap}>
-                  <Ionicons color={Colors.accent.gold} name={section.icon as any} size={20} />
-                </View>
-                <Text style={styles.cardTitle}>{section.label}</Text>
-                <Ionicons color={Colors.text.muted} name="chevron-forward" size={18} />
+        <Pressable onPress={() => router.push('/(applicant)/moving/checklist' as any)}>
+          <Card style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.iconWrap}>
+                <Ionicons color={Colors.accent.gold} name="checkbox-outline" size={20} />
               </View>
-              {section.children}
-            </Card>
-          </Pressable>
-        ))}
+              <Text style={styles.cardTitle}>Moving Checklist</Text>
+              <Ionicons color={Colors.text.muted} name="chevron-forward" size={18} />
+            </View>
+            <ProgressBar current={completed} label={`${completed} of ${total} tasks complete`} total={total} />
+            {completed < total && (
+              <Text style={styles.pendingText}>
+                {total - completed} task{total - completed > 1 ? 's' : ''} still to do — don&apos;t miss council tax
+                or DVLA.
+              </Text>
+            )}
+          </Card>
+        </Pressable>
+
+        <Pressable onPress={() => router.push('/(applicant)/moving/deposit' as any)}>
+          <Card style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.iconWrap}>
+                <Ionicons color={Colors.accent.gold} name="wallet-outline" size={20} />
+              </View>
+              <Text style={styles.cardTitle}>Deposit Tracker</Text>
+              <Ionicons color={Colors.text.muted} name="chevron-forward" size={18} />
+            </View>
+            {depositInfo ? (
+              <View style={styles.depositRow}>
+                <View>
+                  <Text style={styles.depositAmount}>£{depositInfo.amount.toLocaleString()}</Text>
+                  <Text style={styles.depositSub}>{statusLabel[depositInfo.status]}</Text>
+                </View>
+                <View style={[styles.schemeBadge, { borderColor: schemeColors[depositInfo.scheme] }]}>
+                  <Text style={[styles.schemeLabel, { color: schemeColors[depositInfo.scheme] }]}>
+                    {depositInfo.scheme}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.depositSub}>No deposit information yet</Text>
+            )}
+          </Card>
+        </Pressable>
+
+        <Pressable onPress={() => router.push('/(applicant)/moving/dispute' as any)}>
+          <Card style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.iconWrap}>
+                <Ionicons color={Colors.accent.gold} name="shield-outline" size={20} />
+              </View>
+              <Text style={styles.cardTitle}>Deposit Dispute Guide</Text>
+              <Ionicons color={Colors.text.muted} name="chevron-forward" size={18} />
+            </View>
+            <Text style={styles.disputeText}>
+              Know your rights before move-out. Step-by-step guide to challenging unfair deductions through TDS, DPS,
+              or MyDeposits.
+            </Text>
+          </Card>
+        </Pressable>
 
         <Card style={styles.rightsCard} tone="muted">
           <View style={styles.rightsHeader}>

@@ -1,10 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Card } from '@/components/ui/Card';
-import { Colors, Spacing, Typography } from '@/constants/theme';
-import { currentTenancy } from '@/data/mockData';
+import { useAuth } from '@/context/auth';
+import { fetchContacts } from '@/lib/db';
 import { ContactRole, PropertyContact } from '@/types';
+import { Colors, Spacing, Typography } from '@/constants/theme';
 
 const roleConfig: Record<ContactRole, { label: string; color: string; icon: string }> = {
   landlord: { label: 'Landlord', color: Colors.accent.gold, icon: 'home-outline' },
@@ -18,7 +21,6 @@ const roleOrder: ContactRole[] = ['landlord', 'agent', 'emergency', 'utility', '
 
 function ContactCard({ contact }: { contact: PropertyContact }) {
   const config = roleConfig[contact.role];
-
   return (
     <Card style={styles.contactCard}>
       <View style={styles.contactHeader}>
@@ -32,9 +34,7 @@ function ContactCard({ contact }: { contact: PropertyContact }) {
           </View>
         </View>
       </View>
-
-      {contact.notes && <Text style={styles.contactNotes}>{contact.notes}</Text>}
-
+      {contact.notes ? <Text style={styles.contactNotes}>{contact.notes}</Text> : null}
       <View style={styles.actionRow}>
         {contact.phone && (
           <Pressable onPress={() => Linking.openURL(`tel:${contact.phone}`)} style={styles.actionBtn}>
@@ -54,11 +54,29 @@ function ContactCard({ contact }: { contact: PropertyContact }) {
 }
 
 export default function ContactsScreen() {
-  const { contacts } = currentTenancy;
-  const grouped = roleOrder.map((role) => ({
-    role,
-    items: contacts.filter((c) => c.role === role),
-  })).filter((g) => g.items.length > 0);
+  const { user } = useAuth();
+  const [contacts, setContacts] = useState<PropertyContact[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchContacts(user.id).then((c) => {
+      setContacts(c);
+      setLoading(false);
+    });
+  }, [user]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background.primary }}>
+        <ActivityIndicator color={Colors.accent.gold} />
+      </View>
+    );
+  }
+
+  const grouped = roleOrder
+    .map((role) => ({ role, items: contacts.filter((c) => c.role === role) }))
+    .filter((g) => g.items.length > 0);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -68,14 +86,21 @@ export default function ContactsScreen() {
           <Text style={styles.subtitle}>Everyone you might need to reach about your home.</Text>
         </View>
 
-        {grouped.map((group) => (
-          <View key={group.role}>
-            <Text style={styles.groupLabel}>{roleConfig[group.role].label}</Text>
-            {group.items.map((contact) => (
-              <ContactCard key={contact.id} contact={contact} />
-            ))}
-          </View>
-        ))}
+        {grouped.length === 0 ? (
+          <Card style={styles.emptyCard} tone="muted">
+            <Ionicons color={Colors.text.muted} name="call-outline" size={28} />
+            <Text style={styles.emptyText}>No contacts added yet. Contacts are set up when your tenancy is configured.</Text>
+          </Card>
+        ) : (
+          grouped.map((group) => (
+            <View key={group.role}>
+              <Text style={styles.groupLabel}>{roleConfig[group.role].label}</Text>
+              {group.items.map((contact) => (
+                <ContactCard key={contact.id} contact={contact} />
+              ))}
+            </View>
+          ))
+        )}
 
         <Card style={styles.emergencyCard}>
           <View style={styles.emergencyHeader}>
@@ -107,16 +132,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     textTransform: 'uppercase',
   },
+  emptyCard: { alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.xl },
+  emptyText: { color: Colors.text.secondary, fontSize: Typography.sizes.md, lineHeight: 22, textAlign: 'center' },
   contactCard: { gap: Spacing.md },
   contactHeader: { alignItems: 'center', flexDirection: 'row', gap: Spacing.md },
-  roleIcon: {
-    alignItems: 'center',
-    borderRadius: 10,
-    borderWidth: 1,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
+  roleIcon: { alignItems: 'center', borderRadius: 10, borderWidth: 1, height: 40, justifyContent: 'center', width: 40 },
   contactMeta: { flex: 1, gap: 6 },
   contactName: { color: Colors.text.primary, fontSize: Typography.sizes.lg, fontWeight: Typography.weights.semibold },
   roleBadge: { alignSelf: 'flex-start', borderRadius: 6, borderWidth: 1, paddingHorizontal: Spacing.sm, paddingVertical: 2 },

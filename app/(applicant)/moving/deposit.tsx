@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Card } from '@/components/ui/Card';
+import { useAuth } from '@/context/auth';
+import { fetchTenancy } from '@/lib/db';
+import { CurrentTenancy, DepositScheme } from '@/types';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { currentTenancy } from '@/data/mockData';
-import { DepositScheme } from '@/types';
 
 const schemeInfo: Record<DepositScheme, { color: string; website: string; phone: string; description: string }> = {
   TDS: {
@@ -32,12 +35,14 @@ const statusInfo: Record<string, { label: string; color: string; description: st
   held: {
     label: 'Held & protected',
     color: Colors.success,
-    description: 'Your deposit is legally protected. Your landlord must return it within 10 days of you agreeing the final amount at the end of your tenancy.',
+    description:
+      'Your deposit is legally protected. Your landlord must return it within 10 days of you agreeing the final amount at the end of your tenancy.',
   },
   dispute_raised: {
     label: 'Dispute in progress',
     color: Colors.accent.gold,
-    description: 'A dispute has been raised. The scheme will adjudicate and make a decision — usually within 28 days.',
+    description:
+      'A dispute has been raised. The scheme will adjudicate and make a decision — usually within 28 days.',
   },
   returned_full: {
     label: 'Returned in full',
@@ -47,13 +52,47 @@ const statusInfo: Record<string, { label: string; color: string; description: st
   returned_partial: {
     label: 'Partially returned',
     color: Colors.accent.gold,
-    description: 'Part of your deposit was deducted. You have 3 months from the end of tenancy to raise a dispute if you disagree.',
+    description:
+      'Part of your deposit was deducted. You have 3 months from the end of tenancy to raise a dispute if you disagree.',
   },
 };
 
 export default function DepositScreen() {
   const router = useRouter();
-  const { depositInfo } = currentTenancy;
+  const { user } = useAuth();
+  const [tenancy, setTenancy] = useState<CurrentTenancy | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchTenancy(user.id).then((t) => {
+      setTenancy(t);
+      setLoading(false);
+    });
+  }, [user]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background.primary }}>
+        <ActivityIndicator color={Colors.accent.gold} />
+      </View>
+    );
+  }
+
+  if (!tenancy) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, padding: Spacing.lg }}>
+          <Ionicons color={Colors.text.muted} name="wallet-outline" size={40} />
+          <Text style={{ color: Colors.text.secondary, fontSize: Typography.sizes.md, textAlign: 'center', lineHeight: 22 }}>
+            No deposit information yet. This screen will populate when your tenancy is set up.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const { depositInfo } = tenancy;
   const scheme = schemeInfo[depositInfo.scheme];
   const status = statusInfo[depositInfo.status];
 
@@ -79,10 +118,26 @@ export default function DepositScreen() {
           {[
             { label: 'Protection scheme', value: scheme.description },
             { label: 'Scheme reference', value: depositInfo.schemeRef },
-            { label: 'Paid', value: new Date(depositInfo.paidAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) },
+            {
+              label: 'Paid',
+              value: new Date(depositInfo.paidAt).toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              }),
+            },
             { label: 'Landlord', value: depositInfo.landlordName },
             ...(depositInfo.expectedReturnDate
-              ? [{ label: 'Expected return', value: new Date(depositInfo.expectedReturnDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) }]
+              ? [
+                  {
+                    label: 'Expected return',
+                    value: new Date(depositInfo.expectedReturnDate).toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    }),
+                  },
+                ]
               : []),
           ].map(({ label, value }) => (
             <View key={label} style={styles.detailRow}>
@@ -111,7 +166,7 @@ export default function DepositScreen() {
           </View>
         </Card>
 
-        <Pressable onPress={() => router.push('/(applicant)/moving/dispute')}>
+        <Pressable onPress={() => router.push('/(applicant)/moving/dispute' as any)}>
           <Card style={styles.disputeLink}>
             <Ionicons color={Colors.accent.gold} name="shield-outline" size={20} />
             <View style={styles.disputeContent}>
@@ -132,14 +187,14 @@ const styles = StyleSheet.create({
   title: { color: Colors.text.primary, fontSize: Typography.sizes.xxl, fontWeight: Typography.weights.bold },
   subtitle: { color: Colors.text.secondary, fontSize: Typography.sizes.md },
   amountCard: { alignItems: 'flex-start', gap: Spacing.md },
-  amountLabel: { color: Colors.text.secondary, fontSize: Typography.sizes.sm, fontWeight: Typography.weights.semibold, textTransform: 'uppercase', letterSpacing: 0.5 },
+  amountLabel: { color: Colors.text.secondary, fontSize: Typography.sizes.sm, fontWeight: Typography.weights.semibold, letterSpacing: 0.5, textTransform: 'uppercase' },
   amount: { color: Colors.text.primary, fontSize: 48, fontWeight: Typography.weights.bold },
   statusBadge: { alignItems: 'center', borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 6, paddingHorizontal: Spacing.md, paddingVertical: 6 },
   statusDot: { borderRadius: 4, height: 8, width: 8 },
   statusLabel: { fontSize: Typography.sizes.sm, fontWeight: Typography.weights.semibold },
   statusDesc: { color: Colors.text.secondary, fontSize: Typography.sizes.sm, lineHeight: 20 },
   detailsCard: { gap: Spacing.md },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md },
+  detailRow: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'space-between' },
   detailLabel: { color: Colors.text.muted, fontSize: Typography.sizes.sm },
   detailValue: { color: Colors.text.primary, flex: 1, fontSize: Typography.sizes.sm, fontWeight: Typography.weights.medium, textAlign: 'right' },
   schemeCard: { gap: Spacing.md },

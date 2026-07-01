@@ -1,12 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { useAuth } from '@/context/auth';
+import { fetchApplications, fetchChecklist, fetchPassport, fetchTenancy } from '@/lib/db';
+import { CurrentTenancy, MovingChecklistItem, PropertyApplication, TenantPassport } from '@/types';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { currentApplicant, currentTenancy, movingChecklist } from '@/data/mockData';
 
 const currency = (value?: number) => (value ? `£${value.toLocaleString()}` : '—');
 const fmtDate = (d: string) =>
@@ -18,30 +22,56 @@ const greeting = () => {
   return 'Good evening';
 };
 
-type JourneySection = {
-  icon: string;
-  label: string;
-  sublabel: string;
-  route: string;
-  accent?: string;
-};
-
 export default function DashboardScreen() {
   const router = useRouter();
-  const documents = Object.values(currentApplicant.passport.documents);
-  const completeDocs = documents.filter(Boolean).length;
-  const openMaintenance = currentTenancy.maintenanceRequests.filter((r) => r.status !== 'resolved' && r.status !== 'closed');
-  const urgentMaintenance = openMaintenance.filter((r) => r.priority === 'high' || r.priority === 'emergency');
-  const checklistDone = movingChecklist.filter((i) => i.completed).length;
+  const { user } = useAuth();
+  const [passport, setPassport] = useState<TenantPassport | null>(null);
+  const [applications, setApplications] = useState<PropertyApplication[]>([]);
+  const [tenancy, setTenancy] = useState<CurrentTenancy | null>(null);
+  const [checklist, setChecklist] = useState<MovingChecklistItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const journeySections: JourneySection[] = [
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([
+      fetchPassport(user.id),
+      fetchApplications(user.id),
+      fetchTenancy(user.id),
+      fetchChecklist(user.id),
+    ]).then(([p, apps, t, cl]) => {
+      setPassport(p);
+      setApplications(apps);
+      setTenancy(t);
+      setChecklist(cl);
+      setLoading(false);
+    });
+  }, [user]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background.primary }}>
+        <ActivityIndicator color={Colors.accent.gold} />
+      </View>
+    );
+  }
+
+  const documents = passport ? Object.values(passport.documents) : [];
+  const completeDocs = documents.filter(Boolean).length;
+  const openMaintenance = (tenancy?.maintenanceRequests ?? []).filter(
+    (r) => r.status !== 'resolved' && r.status !== 'closed',
+  );
+  const urgentMaintenance = openMaintenance.filter((r) => r.priority === 'high' || r.priority === 'emergency');
+  const checklistDone = checklist.filter((i) => i.completed).length;
+
+  const journeySections = [
     {
       icon: 'id-card-outline',
       label: 'My Passport',
-      sublabel: currentApplicant.passport.isComplete
-        ? `${currentApplicant.applications.length} active applications`
+      sublabel: passport?.isComplete
+        ? `${applications.length} active application${applications.length !== 1 ? 's' : ''}`
         : 'Finish your profile to apply',
       route: '/(applicant)/passport',
+      accent: undefined as string | undefined,
     },
     {
       icon: 'shield-checkmark-outline',
@@ -56,8 +86,11 @@ export default function DashboardScreen() {
     {
       icon: 'checkbox-outline',
       label: 'Moving',
-      sublabel: `${checklistDone} of ${movingChecklist.length} checklist items done · £${currentTenancy.depositInfo.amount.toLocaleString()} held in ${currentTenancy.depositInfo.scheme}`,
+      sublabel: tenancy
+        ? `${checklistDone} of ${checklist.length} checklist items done · £${tenancy.depositInfo.amount.toLocaleString()} held in ${tenancy.depositInfo.scheme}`
+        : `${checklistDone} of ${checklist.length} checklist items done`,
       route: '/(applicant)/moving',
+      accent: undefined as string | undefined,
     },
   ];
 
@@ -67,11 +100,11 @@ export default function DashboardScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>{greeting()}</Text>
-            <Text style={styles.name}>{currentApplicant.passport.fullName}</Text>
+            <Text style={styles.name}>{passport?.fullName ?? 'Welcome'}</Text>
           </View>
           <Badge
-            label={currentApplicant.passport.isComplete ? 'Passport ready' : 'Finish onboarding'}
-            color={currentApplicant.passport.isComplete ? Colors.success : Colors.accent.gold}
+            label={passport?.isComplete ? 'Passport ready' : 'Finish onboarding'}
+            color={passport?.isComplete ? Colors.success : Colors.accent.gold}
           />
         </View>
 
@@ -82,15 +115,15 @@ export default function DashboardScreen() {
           </Text>
           <View style={styles.heroStatsRow}>
             <View style={styles.heroStatItem}>
-              <Text style={styles.heroStat}>{currentApplicant.applications.length}</Text>
+              <Text style={styles.heroStat}>{applications.length}</Text>
               <Text style={styles.heroLabel}>Applications</Text>
             </View>
             <View style={styles.heroStatItem}>
-              <Text style={styles.heroStat}>{currency(currentApplicant.passport.monthlyBudget)}</Text>
+              <Text style={styles.heroStat}>{currency(passport?.monthlyBudget)}</Text>
               <Text style={styles.heroLabel}>Monthly budget</Text>
             </View>
             <View style={styles.heroStatItem}>
-              <Text style={styles.heroStat}>{currentTenancy.inventoryItems.length}</Text>
+              <Text style={styles.heroStat}>{tenancy?.inventoryItems.length ?? 0}</Text>
               <Text style={styles.heroLabel}>Items documented</Text>
             </View>
           </View>
@@ -103,11 +136,7 @@ export default function DashboardScreen() {
             <Card style={styles.journeyCard}>
               <View style={styles.journeyRow}>
                 <View style={[styles.journeyIconWrap, section.accent ? { borderColor: section.accent } : {}]}>
-                  <Ionicons
-                    color={section.accent ?? Colors.accent.gold}
-                    name={section.icon as any}
-                    size={22}
-                  />
+                  <Ionicons color={section.accent ?? Colors.accent.gold} name={section.icon as any} size={22} />
                 </View>
                 <View style={styles.journeyContent}>
                   <Text style={styles.journeyLabel}>{section.label}</Text>
@@ -121,43 +150,53 @@ export default function DashboardScreen() {
           </Pressable>
         ))}
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Passport health</Text>
-          <Ionicons color={Colors.accent.gold} name="sparkles-outline" size={18} />
-        </View>
-        <Card style={styles.passportCard}>
-          <ProgressBar current={completeDocs} label="Documents uploaded" total={documents.length} />
-          <Text style={styles.passportText}>
-            Your strongest signals right now: verified identity, proof of address, and employment documents.
-          </Text>
-        </Card>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent applications</Text>
-          <Pressable onPress={() => router.push('/(applicant)/applications')}>
-            <Text style={styles.viewAll}>View all</Text>
-          </Pressable>
-        </View>
-
-        {currentApplicant.applications.map((application) => (
-          <Pressable key={application.id} onPress={() => router.push(`/(applicant)/applications/${application.id}` as any)}>
-            <Card style={styles.appCard}>
-              <View style={styles.appRow}>
-                <View style={styles.appMeta}>
-                  <Text style={styles.appAddress}>{application.propertyAddress}</Text>
-                  <Text style={styles.appSubtext}>
-                    {application.agencyName} · Updated {fmtDate(application.updatedAt)}
-                  </Text>
-                </View>
-                <Ionicons color={Colors.text.secondary} name="chevron-forward" size={18} />
-              </View>
-              <View style={styles.appFooter}>
-                <Badge status={application.status} />
-                <Text style={styles.appRent}>{currency(application.monthlyRent)} pcm</Text>
-              </View>
+        {passport && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Passport health</Text>
+              <Ionicons color={Colors.accent.gold} name="sparkles-outline" size={18} />
+            </View>
+            <Card style={styles.passportCard}>
+              <ProgressBar current={completeDocs} label="Documents uploaded" total={documents.length} />
+              <Text style={styles.passportText}>
+                Your strongest signals right now: verified identity, proof of address, and employment documents.
+              </Text>
             </Card>
-          </Pressable>
-        ))}
+          </>
+        )}
+
+        {applications.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent applications</Text>
+              <Pressable onPress={() => router.push('/(applicant)/applications')}>
+                <Text style={styles.viewAll}>View all</Text>
+              </Pressable>
+            </View>
+
+            {applications.slice(0, 3).map((application) => (
+              <Pressable
+                key={application.id}
+                onPress={() => router.push(`/(applicant)/applications/${application.id}` as any)}>
+                <Card style={styles.appCard}>
+                  <View style={styles.appRow}>
+                    <View style={styles.appMeta}>
+                      <Text style={styles.appAddress}>{application.propertyAddress}</Text>
+                      <Text style={styles.appSubtext}>
+                        {application.agencyName} · Updated {fmtDate(application.updatedAt)}
+                      </Text>
+                    </View>
+                    <Ionicons color={Colors.text.secondary} name="chevron-forward" size={18} />
+                  </View>
+                  <View style={styles.appFooter}>
+                    <Badge status={application.status} />
+                    <Text style={styles.appRent}>{currency(application.monthlyRent)} pcm</Text>
+                  </View>
+                </Card>
+              </Pressable>
+            ))}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

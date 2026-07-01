@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Colors, Spacing, Typography } from '@/constants/theme';
-import { movingChecklist } from '@/data/mockData';
+import { useAuth } from '@/context/auth';
+import { fetchChecklist, toggleChecklistItem } from '@/lib/db';
 import { MovingChecklistItem, MovingPhase } from '@/types';
+import { Colors, Spacing, Typography } from '@/constants/theme';
 
 const phaseConfig: Record<MovingPhase, { label: string; icon: string }> = {
   before_move: { label: 'Before you move', icon: 'calendar-outline' },
@@ -43,12 +45,35 @@ function ChecklistItem({ item, onToggle }: { item: MovingChecklistItem; onToggle
 }
 
 export default function ChecklistScreen() {
-  const [items, setItems] = useState(movingChecklist);
-  const completed = items.filter((i) => i.completed).length;
+  const { user } = useAuth();
+  const [items, setItems] = useState<MovingChecklistItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const toggle = (id: string) => {
-    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item)));
+  useEffect(() => {
+    if (!user) return;
+    fetchChecklist(user.id).then((cl) => {
+      setItems(cl);
+      setLoading(false);
+    });
+  }, [user]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background.primary }}>
+        <ActivityIndicator color={Colors.accent.gold} />
+      </View>
+    );
+  }
+
+  const toggle = async (id: string) => {
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
+    const newCompleted = !item.completed;
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, completed: newCompleted } : i)));
+    await toggleChecklistItem(id, newCompleted);
   };
+
+  const completed = items.filter((i) => i.completed).length;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -60,7 +85,7 @@ export default function ChecklistScreen() {
 
         <Card style={styles.progressCard}>
           <ProgressBar current={completed} label={`${completed} of ${items.length} tasks complete`} total={items.length} />
-          {completed === items.length && (
+          {completed === items.length && items.length > 0 && (
             <View style={styles.completeRow}>
               <Ionicons color={Colors.success} name="checkmark-circle" size={18} />
               <Text style={styles.completeText}>All done — you&apos;re fully settled in.</Text>
@@ -77,7 +102,11 @@ export default function ChecklistScreen() {
           return (
             <View key={phase}>
               <View style={styles.phaseHeader}>
-                <Ionicons color={phaseDone === phaseItems.length ? Colors.success : Colors.text.muted} name={config.icon as any} size={16} />
+                <Ionicons
+                  color={phaseDone === phaseItems.length ? Colors.success : Colors.text.muted}
+                  name={config.icon as any}
+                  size={16}
+                />
                 <Text style={styles.phaseLabel}>{config.label}</Text>
                 <Text style={styles.phaseCount}>{phaseDone}/{phaseItems.length}</Text>
               </View>
@@ -123,7 +152,7 @@ const styles = StyleSheet.create({
   },
   checkboxDone: { backgroundColor: Colors.accent.gold, borderColor: Colors.accent.gold },
   itemContent: { flex: 1, gap: Spacing.xs },
-  itemHeader: { alignItems: 'flex-start', flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' },
+  itemHeader: { alignItems: 'flex-start', flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   itemTitle: { color: Colors.text.primary, flex: 1, fontSize: Typography.sizes.md, fontWeight: Typography.weights.semibold },
   itemDone: { color: Colors.text.muted, textDecorationLine: 'line-through' },
   categoryBadge: { backgroundColor: Colors.background.tertiary, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },

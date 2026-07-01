@@ -45,13 +45,13 @@ export default function ApplicationsScreen() {
               <View style={styles.applicationHeader}>
                 <View style={styles.applicationMeta}>
                   <Text style={styles.address}>{application.propertyAddress}</Text>
-                  <Text style={styles.meta}>{application.agencyName} • Ref {application.propertyRef}</Text>
+                  <Text style={styles.meta}>{application.agencyName}{application.propertyRef ? ` • Ref ${application.propertyRef}` : ''}</Text>
                 </View>
                 <Ionicons color={Colors.text.secondary} name="chevron-forward" size={18} />
               </View>
               <View style={styles.footer}>
                 <Badge status={application.status} />
-                <Text style={styles.rent}>£{application.monthlyRent?.toLocaleString()} pcm</Text>
+                <Text style={styles.rent}>{application.monthlyRent ? `£${application.monthlyRent.toLocaleString()} pcm` : '—'}</Text>
               </View>
             </Card>
           </Pressable>

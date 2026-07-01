@@ -23,6 +23,9 @@ const statusConfig: Record<MaintenanceStatus, { color: string; label: string }> 
   closed: { color: Colors.text.muted, label: 'Closed' },
 };
 
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
 const categoryIcons: Record<string, string> = {
   plumbing: 'water-outline',
   electrical: 'flash-outline',
@@ -44,7 +47,7 @@ function RequestCard({ request }: { request: MaintenanceRequest }) {
         <Ionicons color={isResolved ? Colors.text.muted : priority.color} name={categoryIcons[request.category] as any} size={20} />
         <View style={styles.requestMeta}>
           <Text style={[styles.requestTitle, isResolved ? styles.resolvedText : {}]}>{request.title}</Text>
-          <Text style={styles.requestDate}>Logged {request.loggedAt}</Text>
+          <Text style={styles.requestDate}>Logged {fmtDate(request.loggedAt)}</Text>
         </View>
         <View style={styles.badges}>
           <View style={[styles.badge, { borderColor: status.color }]}>
@@ -60,7 +63,7 @@ function RequestCard({ request }: { request: MaintenanceRequest }) {
         </View>
       )}
       {!request.landlordResponse && !isResolved && (
-        <Text style={styles.noResponse}>No response yet — logged {request.loggedAt}</Text>
+        <Text style={styles.noResponse}>No response yet — logged {fmtDate(request.loggedAt)}</Text>
       )}
     </Card>
   );

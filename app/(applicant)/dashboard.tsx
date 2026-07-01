@@ -11,6 +11,12 @@ import { currentApplicant, currentTenancy, movingChecklist } from '@/data/mockDa
 const currency = (value?: number) => (value ? `£${value.toLocaleString()}` : '—');
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+};
 
 type JourneySection = {
   icon: string;
@@ -60,7 +66,7 @@ export default function DashboardScreen() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Good morning</Text>
+            <Text style={styles.greeting}>{greeting()}</Text>
             <Text style={styles.name}>{currentApplicant.passport.fullName}</Text>
           </View>
           <Badge

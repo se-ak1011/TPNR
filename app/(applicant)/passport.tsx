@@ -64,7 +64,7 @@ export default function PassportScreen() {
           <Detail label="Email" value={passport.email} />
           <Detail label="Phone" value={passport.phone} />
           <Detail label="Current address" value={passport.currentAddress} />
-          <Detail label="Desired move-in date" value={passport.desiredMoveInDate} />
+          <Detail label="Desired move-in date" value={new Date(passport.desiredMoveInDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} />
         </Card>
 
         <Card style={styles.sectionCard}>

@@ -427,6 +427,93 @@ export async function fetchInventory(userId: string): Promise<InventoryItem[]> {
   return (data ?? []).map(toInventoryItem);
 }
 
+// ── Tenancy ───────────────────────────────────────────────────
+
+export async function upsertTenancy(
+  userId: string,
+  fields: {
+    propertyAddress: string;
+    tenancyStartDate?: string;
+    tenancyEndDate?: string;
+    monthlyRent?: number;
+    depositAmount?: number;
+    depositScheme?: string;
+    depositSchemeRef?: string;
+    depositPaidAt?: string;
+    depositLandlordName?: string;
+  },
+): Promise<void> {
+  await supabase.from('tenancies').upsert(
+    {
+      user_id: userId,
+      property_address: fields.propertyAddress,
+      tenancy_start_date: fields.tenancyStartDate || null,
+      tenancy_end_date: fields.tenancyEndDate || null,
+      monthly_rent: fields.monthlyRent || null,
+      deposit_amount: fields.depositAmount || null,
+      deposit_scheme: fields.depositScheme || null,
+      deposit_scheme_ref: fields.depositSchemeRef || null,
+      deposit_paid_at: fields.depositPaidAt || null,
+      deposit_landlord_name: fields.depositLandlordName || null,
+    },
+    { onConflict: 'user_id' },
+  );
+}
+
+// ── Contacts ──────────────────────────────────────────────────
+
+export async function createContact(
+  userId: string,
+  fields: {
+    name: string;
+    role: ContactRole;
+    phone?: string;
+    email?: string;
+    notes?: string;
+  },
+): Promise<void> {
+  await supabase.from('property_contacts').insert({
+    user_id: userId,
+    name: fields.name,
+    role: fields.role,
+    phone: fields.phone || null,
+    email: fields.email || null,
+    notes: fields.notes || null,
+  });
+}
+
+// ── Inventory ─────────────────────────────────────────────────
+
+export async function createInventoryItem(
+  userId: string,
+  fields: {
+    room: string;
+    item: string;
+    condition: ConditionRating;
+    notes?: string;
+    photoTaken?: boolean;
+  },
+): Promise<void> {
+  await supabase.from('inventory_items').insert({
+    user_id: userId,
+    room: fields.room,
+    item: fields.item,
+    condition: fields.condition,
+    notes: fields.notes || null,
+    photo_taken: fields.photoTaken ?? false,
+    checked_at: new Date().toISOString().slice(0, 10),
+  });
+}
+
+// ── Applications ─────────────────────────────────────────────
+
+export async function updateApplicationStatus(
+  id: string,
+  status: ApplicationStatus,
+): Promise<void> {
+  await supabase.from('property_applications').update({ status }).eq('id', id);
+}
+
 // ── Application status ordering (UI constant) ────────────────
 
 export const APPLICATION_STATUS_ORDER: ApplicationStatus[] = [

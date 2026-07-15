@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/context/auth';
 import { fetchTenancy } from '@/lib/db';
@@ -119,8 +120,13 @@ export default function MyHomeScreen() {
           <Card style={styles.noTenancyCard} tone="muted">
             <Ionicons color={Colors.text.muted} name="home-outline" size={28} />
             <Text style={styles.noTenancyText}>
-              Your tenancy details will appear here once set up. In the meantime, you can still log maintenance issues.
+              Add your property and deposit details to unlock the full dashboard.
             </Text>
+            <Button
+              title="Set up tenancy"
+              onPress={() => router.push('/(applicant)/home/tenancy-setup')}
+              variant="secondary"
+            />
           </Card>
         )}
 

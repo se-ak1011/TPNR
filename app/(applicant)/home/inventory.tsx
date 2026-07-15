@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView, StyleSheet, Text } from 'react-native';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/context/auth';
 import { fetchTenancy } from '@/lib/db';
@@ -39,6 +41,7 @@ function InventoryRow({ item }: { item: InventoryItem }) {
 }
 
 export default function InventoryScreen() {
+  const router = useRouter();
   const { user } = useAuth();
   const [tenancy, setTenancy] = useState<CurrentTenancy | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,15 +72,24 @@ export default function InventoryScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Move-In Inventory</Text>
-          {moveInDate ? <Text style={styles.subtitle}>Recorded {moveInDate}</Text> : null}
+        <View style={styles.headerRow}>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>Move-In Inventory</Text>
+            {moveInDate ? <Text style={styles.subtitle}>Recorded {moveInDate}</Text> : null}
+          </View>
+          <Button
+            fullWidth={false}
+            icon={<Ionicons color={Colors.text.primary} name="add" size={18} />}
+            title="Add"
+            onPress={() => router.push('/(applicant)/home/inventory-new')}
+            variant="secondary"
+          />
         </View>
 
         {inventoryItems.length === 0 ? (
           <Card style={styles.emptyCard} tone="muted">
             <Ionicons color={Colors.text.muted} name="camera-outline" size={28} />
-            <Text style={styles.emptyText}>No inventory items recorded yet. Items are added when your tenancy is set up.</Text>
+            <Text style={styles.emptyText}>No items yet — tap Add to start recording move-in condition.</Text>
           </Card>
         ) : (
           <>
@@ -141,7 +153,8 @@ export default function InventoryScreen() {
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: Colors.background.primary, flex: 1 },
   container: { gap: Spacing.lg, padding: Spacing.lg },
-  header: { gap: Spacing.xs },
+  headerRow: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
+  headerText: { flex: 1, gap: Spacing.xs },
   title: { color: Colors.text.primary, fontSize: Typography.sizes.xxl, fontWeight: Typography.weights.bold },
   subtitle: { color: Colors.text.secondary, fontSize: Typography.sizes.md },
   emptyCard: { alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.xl },

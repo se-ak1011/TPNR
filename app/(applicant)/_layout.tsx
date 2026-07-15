@@ -64,10 +64,13 @@ export default function TenantLayout() {
 
       {/* Hidden: my home section */}
       <Tabs.Screen name="home/inventory" options={{ href: null, title: 'Inventory' }} />
+      <Tabs.Screen name="home/inventory-new" options={{ href: null, title: 'Add Item' }} />
       <Tabs.Screen name="home/maintenance" options={{ href: null, title: 'Maintenance' }} />
       <Tabs.Screen name="home/maintenance-new" options={{ href: null, title: 'Log Issue' }} />
       <Tabs.Screen name="home/documents" options={{ href: null, title: 'Documents' }} />
       <Tabs.Screen name="home/contacts" options={{ href: null, title: 'Contacts' }} />
+      <Tabs.Screen name="home/contacts-new" options={{ href: null, title: 'Add Contact' }} />
+      <Tabs.Screen name="home/tenancy-setup" options={{ href: null, title: 'Set Up Tenancy' }} />
 
       {/* Hidden: moving section */}
       <Tabs.Screen name="moving/checklist" options={{ href: null, title: 'Moving Checklist' }} />

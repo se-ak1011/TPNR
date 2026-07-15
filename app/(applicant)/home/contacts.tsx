@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Linking, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/context/auth';
 import { fetchContacts } from '@/lib/db';
@@ -54,17 +56,20 @@ function ContactCard({ contact }: { contact: PropertyContact }) {
 }
 
 export default function ContactsScreen() {
+  const router = useRouter();
   const { user } = useAuth();
   const [contacts, setContacts] = useState<PropertyContact[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadContacts = () => {
     if (!user) return;
     fetchContacts(user.id).then((c) => {
       setContacts(c);
       setLoading(false);
     });
-  }, [user]);
+  };
+
+  useEffect(() => { loadContacts(); }, [user]);
 
   if (loading) {
     return (
@@ -81,15 +86,24 @@ export default function ContactsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Contacts</Text>
-          <Text style={styles.subtitle}>Everyone you might need to reach about your home.</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>Contacts</Text>
+            <Text style={styles.subtitle}>Everyone you might need to reach about your home.</Text>
+          </View>
+          <Button
+            fullWidth={false}
+            icon={<Ionicons color={Colors.text.primary} name="add" size={18} />}
+            title="Add"
+            onPress={() => router.push('/(applicant)/home/contacts-new')}
+            variant="secondary"
+          />
         </View>
 
         {grouped.length === 0 ? (
           <Card style={styles.emptyCard} tone="muted">
             <Ionicons color={Colors.text.muted} name="call-outline" size={28} />
-            <Text style={styles.emptyText}>No contacts added yet. Contacts are set up when your tenancy is configured.</Text>
+            <Text style={styles.emptyText}>No contacts yet — tap Add to save your landlord or agent details.</Text>
           </Card>
         ) : (
           grouped.map((group) => (
@@ -121,7 +135,8 @@ export default function ContactsScreen() {
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: Colors.background.primary, flex: 1 },
   container: { gap: Spacing.lg, padding: Spacing.lg },
-  header: { gap: Spacing.xs },
+  headerRow: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
+  headerText: { flex: 1, gap: Spacing.xs },
   title: { color: Colors.text.primary, fontSize: Typography.sizes.xxl, fontWeight: Typography.weights.bold },
   subtitle: { color: Colors.text.secondary, fontSize: Typography.sizes.md },
   groupLabel: {

@@ -119,10 +119,12 @@ export default function MaintenanceNewScreen() {
           />
         </Card>
 
-        <Card style={styles.photoPlaceholder}>
-          <Ionicons color={Colors.text.muted} name="camera-outline" size={28} />
-          <Text style={styles.photoLabel}>Add photos</Text>
-          <Text style={styles.photoSub}>Photo evidence makes disputes much harder to ignore</Text>
+        <Card style={styles.photoPlaceholder} tone="muted">
+          <Ionicons color={Colors.text.muted} name="camera-outline" size={24} />
+          <View style={{ alignItems: 'center', gap: 4 }}>
+            <Text style={styles.photoLabel}>Photo uploads coming soon</Text>
+            <Text style={styles.photoSub}>For now, keep photos safe in your camera roll as evidence</Text>
+          </View>
         </Card>
 
         <Button disabled={!canSubmit || saving} title={saving ? 'Saving…' : 'Save request'} onPress={handleSubmit} />

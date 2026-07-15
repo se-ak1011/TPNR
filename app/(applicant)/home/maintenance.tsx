@@ -112,7 +112,7 @@ export default function MaintenanceScreen() {
           </View>
           <Button
             fullWidth={false}
-            icon="add"
+            icon={<Ionicons color={Colors.text.primary} name="add" size={18} />}
             title="Log issue"
             onPress={() => router.push('/(applicant)/home/maintenance-new')}
             variant="secondary"

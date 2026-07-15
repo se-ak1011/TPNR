@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert } from 'react-native';
@@ -16,6 +17,7 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
   const handleSignup = async () => {
     if (!name.trim() || !email.trim() || password.length < 8) {
@@ -23,14 +25,42 @@ export default function SignupScreen() {
       return;
     }
     setLoading(true);
-    const { error } = await signUp(email.trim(), password, name.trim());
+    const { error, requiresConfirmation } = await signUp(email.trim(), password, name.trim());
     setLoading(false);
     if (error) {
       Alert.alert('Sign up failed', error);
       return;
     }
-    router.replace('/(applicant)/onboarding/personal');
+    if (requiresConfirmation) {
+      setAwaitingConfirmation(true);
+    } else {
+      router.replace('/(applicant)/onboarding/personal');
+    }
   };
+
+  if (awaitingConfirmation) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.confirmContainer}>
+          <View style={styles.confirmIcon}>
+            <Ionicons color={Colors.accent.gold} name="mail-outline" size={40} />
+          </View>
+          <Text style={styles.confirmTitle}>Check your inbox</Text>
+          <Text style={styles.confirmText}>
+            We sent a confirmation link to{'\n'}
+            <Text style={styles.confirmEmail}>{email.trim()}</Text>
+            {'\n\n'}
+            Click the link to verify your email and then return here to sign in.
+          </Text>
+          <Button
+            title="Go to sign in"
+            onPress={() => router.replace('/(auth)/login')}
+            variant="secondary"
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -78,4 +108,18 @@ const styles = StyleSheet.create({
   title: { color: Colors.text.primary, fontSize: Typography.sizes.xxxl, fontWeight: Typography.weights.bold },
   subtitle: { color: Colors.text.secondary, fontSize: Typography.sizes.md, lineHeight: 22 },
   formCard: { gap: Spacing.lg },
+  confirmContainer: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    gap: Spacing.lg, padding: Spacing.xl,
+  },
+  confirmIcon: {
+    alignItems: 'center', justifyContent: 'center',
+    width: 80, height: 80,
+    borderRadius: 40,
+    backgroundColor: `${Colors.accent.gold}18`,
+    borderWidth: 1, borderColor: `${Colors.accent.gold}40`,
+  },
+  confirmTitle: { color: Colors.text.primary, fontSize: Typography.sizes.xxl, fontWeight: Typography.weights.bold },
+  confirmText: { color: Colors.text.secondary, fontSize: Typography.sizes.md, lineHeight: 24, textAlign: 'center' },
+  confirmEmail: { color: Colors.text.primary, fontWeight: Typography.weights.semibold },
 });

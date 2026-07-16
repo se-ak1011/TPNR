@@ -1,17 +1,24 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
-import { AuthProvider } from '@/context/auth';
+import { AuthProvider, useAuth } from '@/context/auth';
 import { Colors } from '@/constants/theme';
 
-export default function RootLayout() {
+SplashScreen.preventAutoHideAsync();
+
+function RootLayoutInner() {
+  const { loading } = useAuth();
+
   useEffect(() => {
-    SystemUI.setBackgroundColorAsync(Colors.background.primary).catch(() => undefined);
-  }, []);
+    if (!loading) {
+      SplashScreen.hideAsync();
+    }
+  }, [loading]);
 
   return (
-    <AuthProvider>
+    <>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -20,6 +27,18 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: Colors.background.primary },
         }}
       />
+    </>
+  );
+}
+
+export default function RootLayout() {
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(Colors.background.primary).catch(() => undefined);
+  }, []);
+
+  return (
+    <AuthProvider>
+      <RootLayoutInner />
     </AuthProvider>
   );
 }

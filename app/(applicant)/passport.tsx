@@ -389,7 +389,10 @@ export default function PassportScreen() {
         </Card>
 
         <Card style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Documents checklist</Text>
+          <View>
+            <Text style={styles.sectionTitle}>Documents checklist</Text>
+            <Text style={styles.sectionSubtitle}>Self-reported — mark each when you have it ready to share</Text>
+          </View>
           {DOC_LIST.map(({ key, label }) => {
             const complete = passport.documents[key];
             return (
@@ -403,7 +406,7 @@ export default function PassportScreen() {
                   <Text style={styles.documentText}>{label}</Text>
                 </View>
                 <Text style={[styles.documentStatus, { color: complete ? Colors.success : Colors.text.secondary }]}>
-                  {complete ? 'Uploaded' : 'Missing'}
+                  {complete ? 'Ready' : 'Not yet'}
                 </Text>
               </View>
             );
@@ -443,6 +446,7 @@ const styles = StyleSheet.create({
 
   sectionCard: { gap: Spacing.md },
   sectionTitle: { color: Colors.text.primary, fontSize: Typography.sizes.lg, fontWeight: Typography.weights.semibold },
+  sectionSubtitle: { color: Colors.text.secondary, fontSize: Typography.sizes.sm, marginTop: 2 },
   detailRow: { borderTopColor: Colors.border.subtle, borderTopWidth: 1, gap: Spacing.xs, paddingTop: Spacing.md },
   detailLabel: { color: Colors.text.secondary, fontSize: Typography.sizes.sm },
   detailValue: { color: Colors.text.primary, fontSize: Typography.sizes.md, lineHeight: 22 },

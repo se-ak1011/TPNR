@@ -157,9 +157,13 @@ export default function DashboardScreen() {
               <Ionicons color={Colors.accent.gold} name="sparkles-outline" size={18} />
             </View>
             <Card style={styles.passportCard}>
-              <ProgressBar current={completeDocs} label="Documents uploaded" total={documents.length} />
+              <ProgressBar current={completeDocs} label="Documents ready" total={documents.length} />
               <Text style={styles.passportText}>
-                Your strongest signals right now: verified identity, proof of address, and employment documents.
+                {completeDocs === 0
+                  ? 'Head to your Passport tab to mark which documents you have ready to share with landlords.'
+                  : completeDocs === documents.length
+                  ? 'All documents marked ready — your passport is looking strong.'
+                  : `${documents.length - completeDocs} document${documents.length - completeDocs === 1 ? '' : 's'} still to add. The more you complete, the stronger your application.`}
               </Text>
             </Card>
           </>
@@ -215,7 +219,7 @@ const styles = StyleSheet.create({
   heroStatItem: { flex: 1 },
   heroStat: { color: Colors.text.inverse, fontSize: Typography.sizes.xl, fontWeight: Typography.weights.bold },
   heroLabel: { color: '#4D453D', fontSize: Typography.sizes.sm },
-  sectionTitle: { color: Colors.text.primary, fontSize: Typography.sizes.xl, fontWeight: Typography.weights.semibold },
+  sectionTitle: { color: Colors.text.secondary, fontSize: Typography.sizes.sm, fontWeight: Typography.weights.semibold, letterSpacing: 0.8, textTransform: 'uppercase' },
   sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   viewAll: { color: Colors.accent.gold, fontSize: Typography.sizes.sm, fontWeight: Typography.weights.semibold },
   journeyCard: { gap: Spacing.sm },

@@ -12,9 +12,7 @@ export default function TenantLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: Colors.background.primary },
-        headerTintColor: Colors.text.primary,
-        headerTitleStyle: { fontWeight: '700' },
+        headerShown: false,
         tabBarActiveTintColor: Colors.accent.gold,
         tabBarInactiveTintColor: Colors.text.muted,
         tabBarStyle: {

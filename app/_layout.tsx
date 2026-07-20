@@ -6,8 +6,6 @@ import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { Colors } from '@/constants/theme';
 
-SplashScreen.preventAutoHideAsync();
-
 function RootLayoutInner() {
   const { loading } = useAuth();
 
@@ -16,6 +14,12 @@ function RootLayoutInner() {
       SplashScreen.hideAsync();
     }
   }, [loading]);
+
+  // Hard fallback: if auth never resolves, hide after 5s so the app isn't stuck.
+  useEffect(() => {
+    const t = setTimeout(() => SplashScreen.hideAsync(), 5000);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <>

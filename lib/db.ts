@@ -49,12 +49,12 @@ function toPassport(row: Record<string, any>): TenantPassport {
     referenceDetails: row.reference_details ?? undefined,
     notesForAgent: row.notes_for_agent ?? undefined,
     documents: {
-      photoId: row.doc_photo_id,
-      proofOfAddress: row.doc_proof_of_address,
-      bankStatements: row.doc_bank_statements,
-      employmentContract: row.doc_employment_contract,
-      payslips: row.doc_payslips,
-      references: row.doc_references,
+      photoId: row.doc_photo_id ?? null,
+      proofOfAddress: row.doc_proof_of_address ?? null,
+      bankStatements: row.doc_bank_statements ?? null,
+      employmentContract: row.doc_employment_contract ?? null,
+      payslips: row.doc_payslips ?? null,
+      references: row.doc_references ?? null,
     },
     isComplete: row.is_complete,
     completedAt: row.completed_at ?? undefined,
@@ -152,24 +152,48 @@ export async function savePassportStep(
     .upsert({ user_id: userId, ...fields }, { onConflict: 'user_id' });
 }
 
-export async function completePassport(
-  userId: string,
-  documents: DocumentChecklist,
-): Promise<void> {
+export async function completePassport(userId: string): Promise<void> {
   await supabase.from('tenant_passports').upsert(
     {
       user_id: userId,
-      doc_photo_id: documents.photoId,
-      doc_proof_of_address: documents.proofOfAddress,
-      doc_bank_statements: documents.bankStatements,
-      doc_employment_contract: documents.employmentContract,
-      doc_payslips: documents.payslips,
-      doc_references: documents.references,
       is_complete: true,
       completed_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' },
   );
+}
+
+const DOC_COLUMNS: Record<keyof DocumentChecklist, string> = {
+  photoId: 'doc_photo_id',
+  proofOfAddress: 'doc_proof_of_address',
+  bankStatements: 'doc_bank_statements',
+  employmentContract: 'doc_employment_contract',
+  payslips: 'doc_payslips',
+  references: 'doc_references',
+};
+
+export async function uploadPassportDocument(
+  userId: string,
+  docKey: keyof DocumentChecklist,
+  fileUri: string,
+  fileName: string,
+  mimeType: string,
+): Promise<string | null> {
+  const storagePath = `${userId}/${docKey}/${fileName}`;
+  try {
+    const response = await fetch(fileUri);
+    const blob = await response.blob();
+    const { error } = await supabase.storage
+      .from('passport-documents')
+      .upload(storagePath, blob, { contentType: mimeType, upsert: true });
+    if (error) return null;
+    await supabase
+      .from('tenant_passports')
+      .upsert({ user_id: userId, [DOC_COLUMNS[docKey]]: storagePath }, { onConflict: 'user_id' });
+    return storagePath;
+  } catch {
+    return null;
+  }
 }
 
 // ── Applications ─────────────────────────────────────────────

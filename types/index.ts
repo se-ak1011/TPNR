@@ -49,12 +49,12 @@ export interface PassportInvite {
 }
 
 export interface DocumentChecklist {
-  photoId: boolean;
-  proofOfAddress: boolean;
-  bankStatements: boolean;
-  employmentContract: boolean;
-  payslips: boolean;
-  references: boolean;
+  photoId: string | null;
+  proofOfAddress: string | null;
+  bankStatements: string | null;
+  employmentContract: string | null;
+  payslips: string | null;
+  references: string | null;
 }
 
 export interface PropertyApplication {

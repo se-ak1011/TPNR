@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -24,6 +25,7 @@ import {
   fetchSentInvite,
   sendPartnerInvite,
   updateCreditScore,
+  uploadPassportDocument,
 } from '@/lib/db';
 import { DocumentChecklist, PassportInvite, TenantPassport } from '@/types';
 import { Colors, Spacing, Typography } from '@/constants/theme';
@@ -85,6 +87,9 @@ export default function PassportScreen() {
   // Credit score state
   const [scoreText, setScoreText] = useState('');
   const [scoreSaving, setScoreSaving] = useState(false);
+
+  // Document upload state
+  const [docUploading, setDocUploading] = useState<Partial<Record<keyof DocumentChecklist, boolean>>>({});
 
   // Joint passport state
   const [sentInvite, setSentInvite] = useState<PassportInvite | null>(null);
@@ -155,6 +160,31 @@ export default function PassportScreen() {
     } catch {
       Alert.alert('Error', 'Could not accept invite. Please try again.');
       setAcceptingInvite(false);
+    }
+  };
+
+  const pickDocument = async (key: keyof DocumentChecklist) => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['image/*', 'application/pdf'],
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setDocUploading((prev) => ({ ...prev, [key]: true }));
+    const path = await uploadPassportDocument(
+      user!.id,
+      key,
+      asset.uri,
+      asset.name,
+      asset.mimeType ?? 'application/octet-stream',
+    );
+    setDocUploading((prev) => ({ ...prev, [key]: false }));
+    if (path) {
+      setPassport((prev) =>
+        prev ? { ...prev, documents: { ...prev.documents, [key]: path } } : prev,
+      );
+    } else {
+      Alert.alert('Upload failed', 'Please try again.');
     }
   };
 
@@ -394,20 +424,33 @@ export default function PassportScreen() {
             <Text style={styles.sectionSubtitle}>Self-reported — mark each when you have it ready to share</Text>
           </View>
           {DOC_LIST.map(({ key, label }) => {
-            const complete = passport.documents[key];
+            const path = passport.documents[key];
+            const isUploading = docUploading[key];
+            const fileName = path ? (path.split('/').pop() ?? path) : null;
+            const displayName = fileName && fileName.length > 20 ? fileName.slice(0, 17) + '…' : fileName;
             return (
               <View key={key} style={styles.documentRow}>
                 <View style={styles.documentLeft}>
                   <Ionicons
-                    color={complete ? Colors.success : Colors.text.muted}
-                    name={complete ? 'checkmark-circle' : 'ellipse-outline'}
+                    color={path ? Colors.success : Colors.text.muted}
+                    name={path ? 'checkmark-circle' : 'ellipse-outline'}
                     size={18}
                   />
-                  <Text style={styles.documentText}>{label}</Text>
+                  <View>
+                    <Text style={styles.documentText}>{label}</Text>
+                    {displayName && (
+                      <Text style={styles.documentFileName}>{displayName}</Text>
+                    )}
+                  </View>
                 </View>
-                <Text style={[styles.documentStatus, { color: complete ? Colors.success : Colors.text.secondary }]}>
-                  {complete ? 'Ready' : 'Not yet'}
-                </Text>
+                <Pressable
+                  disabled={isUploading}
+                  onPress={() => pickDocument(key)}
+                  style={[styles.docUploadBtn, path ? styles.docUploadBtnDone : styles.docUploadBtnEmpty]}>
+                  <Text style={[styles.docUploadBtnText, path ? styles.docUploadBtnTextDone : styles.docUploadBtnTextEmpty]}>
+                    {isUploading ? 'Uploading…' : path ? 'Change' : 'Upload'}
+                  </Text>
+                </Pressable>
               </View>
             );
           })}
@@ -458,9 +501,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: Spacing.md,
   },
-  documentLeft: { alignItems: 'center', flexDirection: 'row', gap: Spacing.sm },
+  documentLeft: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: Spacing.sm },
   documentText: { color: Colors.text.primary, fontSize: Typography.sizes.md },
+  documentFileName: { color: Colors.text.secondary, fontSize: Typography.sizes.sm, marginTop: 2 },
   documentStatus: { fontSize: Typography.sizes.sm, fontWeight: Typography.weights.semibold },
+  docUploadBtn: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6 },
+  docUploadBtnEmpty: { borderColor: Colors.accent.gold },
+  docUploadBtnDone: { borderColor: Colors.border.default },
+  docUploadBtnText: { fontSize: Typography.sizes.sm, fontWeight: Typography.weights.semibold },
+  docUploadBtnTextEmpty: { color: Colors.accent.gold },
+  docUploadBtnTextDone: { color: Colors.text.secondary },
 
   // Credit health
   creditHeader: { alignItems: 'center', flexDirection: 'row', gap: Spacing.sm },

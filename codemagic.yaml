@@ -19,6 +19,9 @@ workflows:
         IOS_BUNDLE_IDENTIFIER: com.tenantpassport.app
         # SDK 56 / RN 0.85. Reanimated 4 requires the New Architecture.
         RCT_NEW_ARCH_ENABLED: "1"
+        # Supabase — anon key is public by design, safe to commit
+        EXPO_PUBLIC_SUPABASE_URL: YOUR_SUPABASE_URL_HERE
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: YOUR_SUPABASE_ANON_KEY_HERE
 
     scripts:
       - name: Print iOS signing assets detected by Codemagic
